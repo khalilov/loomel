@@ -1,5 +1,11 @@
-import type { Child } from '../types'
+import { type Child } from '../types'
 import { isMountable } from './isMountable'
 
-export const flatten = (children: Child[]): Exclude<Child, null | false | Child[]>[] =>
-  children.flatMap((child) => (Array.isArray(child) ? flatten(child) : child)).filter(isMountable)
+export const flatten = (children: Child[]): Exclude<Child, null | false | Child[]>[] => {
+  return children.flatMap((child) => {
+    if (Array.isArray(child)) {
+      return flatten(child)
+    }
+    return child
+  }).filter(isMountable)
+}
