@@ -46,6 +46,14 @@ describe('create', () => {
     expect(wrap.node.textContent).toBe('b')
   })
 
+  it('prepend adds children to the beginning', () => {
+    const el = create('div')
+    el.append(create('span', { props: { textContent: 'b' } }))
+    el.prepend(create('span', { props: { textContent: 'a' } }))
+    expect(el.node.children.length).toBe(2)
+    expect(el.node.textContent).toBe('ab')
+  })
+
   it('set updates props in place', () => {
     const el = create('div', { props: { className: 'a' } })
     el.set({ className: 'b', textContent: 'x' })

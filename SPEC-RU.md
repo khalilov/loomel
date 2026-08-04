@@ -57,6 +57,7 @@ interface App<T extends HTMLElement = HTMLElement> {
   node: T
   set(props: Partial<T>): App<T>
   append(...children: Child[]): App<T>
+  prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
   on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
@@ -110,6 +111,6 @@ const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
 ## Критерии готовности v0.1
 
 - [x] `create` с типизированными `props`/`on`/`children`
-- [x] `set` / `append` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
+- [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] отброс `null`/`false` без потери `0`
 - [x] чистый `tsc --noEmit` и `vitest` (9 тестов)

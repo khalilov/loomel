@@ -20,6 +20,10 @@ export const create = <Tag extends keyof HTMLElementTagNameMap>(
       node.append(...children.filter(isMountable).map(resolveChild))
       return app
     },
+    prepend(...children) {
+      node.prepend(...children.filter(isMountable).map(resolveChild))
+      return app
+    },
     replace(...children) {
       node.replaceChildren(...children.filter(isMountable).map(resolveChild))
       return app

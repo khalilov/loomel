@@ -58,6 +58,7 @@ interface App<T extends HTMLElement = HTMLElement> {
   node: T
   set(props: Partial<T>): App<T>
   append(...children: Child[]): App<T>
+  prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
   on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
@@ -113,6 +114,6 @@ it — re-attach subscriptions via `on` after clearing.
 ## v0.1 readiness
 
 - [x] `create` with typed `props`/`on`/`children`
-- [x] `set` / `append` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
+- [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] `null`/`false` filtering without losing `0`
 - [x] clean `tsc --noEmit` and `vitest` (9 tests)

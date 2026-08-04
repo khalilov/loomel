@@ -34,8 +34,9 @@ document.body.append(meter.node)
 | `create(tag, config?)`       | Создаёт реактивный узел `App<HTMLElementTagNameMap[Tag]>`            |
 | `app.node`                   | Настоящий `HTMLElement` — точка интеграции с нативным API            |
 | `app.set(props)`             | Обновляет свойства на месте                                          |
-| `app.append(...children)`    | Добавляет детей в конец                                              |
-| `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                              |
+| `app.append(...children)`    | Добавляет детей в конец                                         |
+| `app.prepend(...children)`   | Добавляет детей в начало                                        |
+| `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                         |
 | `app.clear()`                | Снимает подписки и очищает детей; узел остаётся в DOM               |
 | `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки                      |
 | `app.query(sel)`             | Шорткат к `querySelector` — возвращает `Element | null`              |

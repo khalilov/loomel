@@ -35,6 +35,7 @@ document.body.append(meter.node)
 | `app.node`                   | The real `HTMLElement` — integration point with native API      |
 | `app.set(props)`             | Updates properties in place                                     |
 | `app.append(...children)`    | Appends children to the end                                     |
+| `app.prepend(...children)`   | Prepends children to the beginning                              |
 | `app.replace(...children)`   | Replaces content (`replaceChildren`)                            |
 | `app.clear()`                | Drops subscriptions and clears children; node stays in DOM      |
 | `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function         |

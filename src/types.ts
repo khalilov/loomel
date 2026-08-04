@@ -2,6 +2,7 @@ export interface App<T extends HTMLElement = HTMLElement> {
   node: T
   set(props: Partial<T>): App<T>
   append(...children: Child[]): App<T>
+  prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
   on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
