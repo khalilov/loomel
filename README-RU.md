@@ -96,6 +96,28 @@ list.dispose() // подписки сняты, узел удалён из DOM
 > `clear()` снимает подписки и очищает детей, но оставляет узел в дереве.
 > Удобно для сброса компонента без его уничтожения.
 
+## Пример: вложенные обработчики событий
+
+```ts
+import { create } from 'loomel'
+
+const items = ['яблоко', 'банан', 'вишня']
+
+const list = create('ul', {
+  children: items.map((item) =>
+    create('li', {
+      props: { textContent: item },
+      on: { click: () => console.log(`clicked: ${item}`) },
+    }),
+  ),
+})
+
+document.body.append(list.node)
+
+// dispose снимает все вложенные подписки и удаляет элемент из DOM
+list.dispose()
+```
+
 ## Пример: реактивный счётчик
 
 ```ts
@@ -105,11 +127,12 @@ const buildCounter = (initial: number) => {
   const display = create('span', { props: { textContent: String(initial) } })
 
   const button = create('button', {
-    props: { textContent: '+"' } },
-    on: { click: () => display.add },
+    props: { textContent: '+' },
+    on: { click: () => display.set({ textContent: String(++count) }) },
   })
 
-  return create('div', { children: [display, button, create('input')] })
+  let count = initial
+  return create('div', { children: [display, button] })
 }
 ```
 

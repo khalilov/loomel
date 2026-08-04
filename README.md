@@ -99,6 +99,28 @@ list.dispose() // subscriptions removed, element removed from DOM
 > `clear()` drops subscriptions and clears children but keeps the node in the
 > tree. Useful for resetting a component without destroying it.
 
+## Example: nested event handling
+
+```ts
+import { create } from 'loomel'
+
+const items = ['apple', 'banana', 'cherry']
+
+const list = create('ul', {
+  children: items.map((item) =>
+    create('li', {
+      props: { textContent: item },
+      on: { click: () => console.log(`clicked: ${item}`) },
+    }),
+  ),
+})
+
+document.body.append(list.node)
+
+// dispose tears down all nested subscriptions and removes the element
+list.dispose()
+```
+
 ## Example: reactive counter
 
 ```ts
