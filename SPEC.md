@@ -35,9 +35,10 @@ then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
    (`className`, `style`, `dataset`) merge into sub-objects, the rest —
    `Reflect.set`. The same helper is used at creation time and in `set`.
 4. **Children — flat list with bracket filtering.** `Child = HTMLElement | App |
-   string | number | null | false`. `null`/`false` are convenient for conditional
-   insertion and are filtered before insertion. Primitives convert to string
-   (including `0` — filtered by value, not truthiness).
+   string | number | null | false | Child[]`. `null`/`false` are convenient for
+   conditional insertion and are filtered before insertion. Primitives convert to
+   string (including `0` — filtered by value, not truthiness). Nested `Child[]`
+   are recursively flattened.
 5. **Events — only via `on`.** Both layers: declarative `config.on` and the
    `app.on(type, handler)` method. The method returns an unsubscribe function.
    Subscriptions are collected for `dispose`.
@@ -67,7 +68,7 @@ interface App<T extends HTMLElement = HTMLElement> {
   dispose(): void
 }
 
-type Child = HTMLElement | App<HTMLElement> | string | number | null | false
+type Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]
 
 interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
   props?: Partial<HTMLElementTagNameMap[Tag]>
@@ -109,11 +110,11 @@ it — re-attach subscriptions via `on` after clearing.
   `HTMLElementEventMap`.
 - **`applyProps` and own properties** — assigned via `Reflect.set`, but complex
   setter reads are not verified (e.g. `value` on `<input>`).
-- Nested `Child[]` inside `Child[]` is not recursively flattened.
+- Nested `Child[]` inside `Child[]` is now recursively flattened.
 
 ## v0.1 readiness
 
 - [x] `create` with typed `props`/`on`/`children`
 - [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] `null`/`false` filtering without losing `0`
-- [x] clean `tsc --noEmit` and `vitest` (9 tests)
+- [x] clean `tsc --noEmit` and `vitest` (15 tests)

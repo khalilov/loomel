@@ -1,7 +1,10 @@
 import { apply } from './apply'
 import { type App, type Child, type ElementConfig } from './types'
 
-const isMountable = (child: Child): child is Exclude<Child, null | false> => child !== null && child !== false
+const isMountable = (child: Child): child is Exclude<Child, null | false | Child[]> => child !== null && child !== false && !Array.isArray(child)
+
+const flatten = (children: Child[]): Exclude<Child, null | false | Child[]>[] =>
+  children.flatMap((child) => (Array.isArray(child) ? flatten(child) : child)).filter(isMountable)
 
 export const create = <Tag extends keyof HTMLElementTagNameMap>(
   tag: Tag,
@@ -17,15 +20,15 @@ export const create = <Tag extends keyof HTMLElementTagNameMap>(
       return app
     },
     append(...children) {
-      node.append(...children.filter(isMountable).map(resolveChild))
+      node.append(...flatten(children).map(resolveChild))
       return app
     },
     prepend(...children) {
-      node.prepend(...children.filter(isMountable).map(resolveChild))
+      node.prepend(...flatten(children).map(resolveChild))
       return app
     },
     replace(...children) {
-      node.replaceChildren(...children.filter(isMountable).map(resolveChild))
+      node.replaceChildren(...flatten(children).map(resolveChild))
       return app
     },
     clear() {
@@ -71,7 +74,7 @@ export const create = <Tag extends keyof HTMLElementTagNameMap>(
   return app
 }
 
-const resolveChild = (child: Exclude<Child, null | false>): string | Node => {
+const resolveChild = (child: HTMLElement | App | string | number): string | Node => {
   if (child instanceof HTMLElement) return child
   if (typeof child === 'object') return child.node
   return String(child)

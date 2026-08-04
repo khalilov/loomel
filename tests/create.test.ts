@@ -117,4 +117,21 @@ describe('create', () => {
     el.append(create('span', { props: { className: 'a' } }))
     expect(el.query('.missing')).toBeNull()
   })
+
+  it('flattens nested Child arrays recursively', () => {
+    const el = create('ul')
+    const a = create('li', { props: { textContent: 'a' } })
+    const b = create('li', { props: { textContent: 'b' } })
+    const c = create('li', { props: { textContent: 'c' } })
+    el.append(a, [b, [c]])
+    expect(el.node.children.length).toBe(3)
+    expect(el.node.textContent).toBe('abc')
+  })
+
+  it('drops falsy values inside nested arrays', () => {
+    const el = create('ul')
+    el.append([create('li', { props: { textContent: 'a' } }), null, [false, create('li', { props: { textContent: 'b' } })]])
+    expect(el.node.children.length).toBe(2)
+    expect(el.node.textContent).toBe('ab')
+  })
 })

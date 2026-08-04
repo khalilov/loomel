@@ -34,9 +34,10 @@ HTML-элементами без JSX и шаблонов. Атом библио�
    (`className`, `style`, `dataset`) мержатся в под-объекты, прочее — `Reflect.set`.
    Один и тот же хелпер используется и при создании, и в `set`.
 4. **Дети — плоский список с отбросом скобок.** `Child = HTMLElement | App |
-string | number | null | false`. `null`/`false` удобны для условной вставки и
-   отсекаются до вставки. Примитивы конвертируются в строку (в т.ч. `0` не теряется —
-   отсев по значению, не по truthiness).
+   string | number | null | false | Child[]`. `null`/`false` удобны для условной
+   вставки и отсекаются до вставки. Примитивы конвертируются в строку (в т.ч.
+   `0` не теряется — отсев по значению, не по truthiness). Вложенные `Child[]`
+   разворачиваются рекурсивно.
 5. **События — только через `on`.** Оба слоя: декларативный `config.on` и метод
    `app.on(type, handler)`. Метод возвращает функцию отписки. Подписки собираются для
    `dispose`.
@@ -66,7 +67,7 @@ interface App<T extends HTMLElement = HTMLElement> {
   dispose(): void
 }
 
-type Child = HTMLElement | App<HTMLElement> | string | number | null | false
+type Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]
 
 interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
   props?: Partial<HTMLElementTagNameMap[Tag]>
@@ -106,11 +107,11 @@ const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
 - **SVG** (`SVGElement`) не обрабатывается — только `HTMLElement` и `HTMLElementEventMap`.
 - **`applyProps` и собственные свойства** — присваиваются через `Reflect.set`, но для
   чтения сложных сеттеров сверка не выполняется (например `value` на `<input>`).
-- Вложенные массивы `Child[]` внутри `Child[]` не разворачиваются рекурсивно.
+- Вложенные массивы `Child[]` внутри `Child[]` теперь разворачиваются рекурсивно.
 
 ## Критерии готовности v0.1
 
 - [x] `create` с типизированными `props`/`on`/`children`
 - [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] отброс `null`/`false` без потери `0`
-- [x] чистый `tsc --noEmit` и `vitest` (9 тестов)
+- [x] чистый `tsc --noEmit` и `vitest` (15 тестов)

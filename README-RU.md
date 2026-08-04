@@ -59,10 +59,11 @@ interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
 
 ## Дети
 
-`Child = HTMLElement | App<HTMLElement> | string | number | null | false`
+`Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]`
 
 - `App` разрешается в свой `.node`, примитив — в текст (`0` не теряется);
-- `null` / `false` удобны для условной вставки и отсекаются автоматически.
+- `null` / `false` удобны для условной вставки и отсекаются автоматически;
+- вложенные `Child[]` разворачиваются рекурсивно.
 
 ```ts
 const panel = create('div', {

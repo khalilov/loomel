@@ -60,11 +60,12 @@ into sub-objects.
 
 ## Children
 
-`Child = HTMLElement | App<HTMLElement> | string | number | null | false`
+`Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]`
 
 - `App` resolves to its `.node`, primitives convert to text (`0` is preserved);
 - `null` / `false` are convenient for conditional insertion and are filtered out
-  automatically.
+  automatically;
+- nested `Child[]` are recursively flattened.
 
 ```ts
 const panel = create('div', {

@@ -11,7 +11,7 @@ export interface App<T extends HTMLElement = HTMLElement> {
   dispose(): void
 }
 
-export type Child = HTMLElement | App<HTMLElement> | string | number | null | false
+export type Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]
 
 export interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
   props?: Partial<HTMLElementTagNameMap[Tag]>
