@@ -1,25 +1,25 @@
 # loomel
 
-Реактивная фабрика HTML-элементов: процедурное создание и манипулирование DOM без
-JSX и шаблонов. Один атом — `App`, обёртка над нативным `HTMLElement`.
+Reactive HTML element factory: procedural DOM creation and manipulation without JSX
+or templates. One atom — `App`, a wrapper over native `HTMLElement`.
 
-## Установка
+## Install
 
 ```
-bun add loomel
+npm install loomel
 ```
 
-## Быстрый старт
+## Quick start
 
 ```ts
 import { create } from 'loomel'
 
 const meter = create('div', {
-  props: { className: 'world-inspector-need' },
+  props: { className: 'meter' },
   children: [
-    create('span', { props: { textContent: 'Голод' } }),
+    create('span', { props: { textContent: 'Hunger' } }),
     create('span', {
-      props: { className: 'need-fill', style: { width: '42%' } },
+      props: { className: 'meter-fill', style: { width: '42%' } },
     }),
   ],
 })
@@ -27,38 +27,40 @@ const meter = create('div', {
 document.body.append(meter.node)
 ```
 
-## Публичный API
+## Public API
 
-| Член                         | Назначение                                                |
-| ---------------------------- | --------------------------------------------------------- |
-| `create(tag, config?)`       | Создаёт реактивный узел `App<HTMLElementTagNameMap[Tag]>` |
-| `app.node`                   | Настоящий `HTMLElement` — точка интеграции с нативным API |
-| `app.set(props)`             | Обновляет свойства на месте                               |
-| `app.append(...children)`    | Добавляет детей в конец                                   |
-| `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                   |
-| `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки           |
-| `app.dispose()`              | Снимает все подписки и удаляет элемент из дерева          |
-| `applyProps(element, props)` | Нижний хелпер применения свойств                          |
+| Member                       | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| `create(tag, config?)`       | Creates a reactive node `App<HTMLElementTagNameMap[Tag]>`        |
+| `app.node`                   | The real `HTMLElement` — integration point with native API      |
+| `app.set(props)`             | Updates properties in place                                     |
+| `app.append(...children)`    | Appends children to the end                                     |
+| `app.replace(...children)`   | Replaces content (`replaceChildren`)                            |
+| `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function         |
+| `app.dispose()`              | Removes all subscriptions and the element from the tree         |
+| `applyProps(element, props)` | Low-level property application helper                           |
 
-## Конфиг создания
+## Creation config
 
 ```ts
 interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
-  props?: Partial<HTMLElementTagNameMap[Tag]> // типизировано по тегу
+  props?: Partial<HTMLElementTagNameMap[Tag]> // typed by tag
   on?: { [K in keyof HTMLElementEventMap]?: (e: HTMLElementEventMap[K]) => void }
   children?: Child | Child[]
 }
 ```
 
-`props` строго типизирован: для `create('button', ...)` автокомплит и проверки идут
-по `HTMLButtonElement`. Частные случаи (`style`, `dataset`) мержатся в под-объекты.
+`props` is strictly typed: for `create('button', ...)` autocomplete and checks
+work against `HTMLButtonElement`. Special cases (`style`, `dataset`) are merged
+into sub-objects.
 
-## Дети
+## Children
 
 `Child = HTMLElement | App<HTMLElement> | string | number | null | false`
 
-- `App` разрешается в свой `.node`, примитив — в текст (`0` не теряется);
-- `null` / `false` удобны для условной вставки и отсекаются автоматически.
+- `App` resolves to its `.node`, primitives convert to text (`0` is preserved);
+- `null` / `false` are convenient for conditional insertion and are filtered out
+  automatically.
 
 ```ts
 const panel = create('div', {
@@ -69,24 +71,26 @@ const panel = create('div', {
 })
 ```
 
-## Жизненный цикл
+## Lifecycle
 
 ```ts
 const list = create('ul')
 
-// где-то по мере прихода данных — перерисовать содержимое
-const redraw = (items: string[]) => list.replace(...items.map((item) => create('li', { props: { textContent: item } })))
+// as data arrives — redraw content
+const redraw = (items: string[]) =>
+  list.replace(...items.map((item) => create('li', { props: { textContent: item } })))
 
 redraw(['a', 'b'])
 redraw(['c'])
 
-list.dispose() // подписки сняты, узел удалён из DOM
+list.dispose() // subscriptions removed, element removed from DOM
 ```
 
-> `dispose()` удаляет элемент и снимает подписки. Если узел затем вернуть в DOM
-> нативным `append`, подписки навешиваются заново вручную — авто-восстановления нет.
+> `dispose()` removes the element and drops subscriptions. If the node is
+> re-attached to the DOM via native `append`, subscriptions must be re-added
+> manually — there is no automatic restoration.
 
-## Пример: реактивный счётчик
+## Example: reactive counter
 
 ```ts
 import { create } from 'loomel'
@@ -95,16 +99,17 @@ const buildCounter = (initial: number) => {
   const display = create('span', { props: { textContent: String(initial) } })
 
   const button = create('button', {
-    props: { textContent: '+"' } },
-    on: { click: () => display.add },
+    props: { textContent: '+' },
+    on: { click: () => display.set({ textContent: String(++count) }) },
   })
 
-  return create('div', { children: [display, button, create('input')] })
+  let count = initial
+  return create('div', { children: [display, button] })
 }
 ```
 
-## Тесты
+## Tests
 
 ```
-bun test
+npm test
 ```

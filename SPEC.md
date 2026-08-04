@@ -1,52 +1,53 @@
-# SPEC — реактивная фабрика HTML-элементов
+# SPEC — Reactive HTML Element Factory
 
-## Назначение
+## Purpose
 
-Супер-мини библиотека для процедурной генерации и последующего манипулирования
-HTML-элементами без JSX и шаблонов. Атом библиотеки — **реактивный узел** (`App`):
-обёртка над нативным `HTMLElement`, которая держит ссылку на элемент и закрывает его
-жизненный цикл (создание, обновление свойств, компоновка детей, подписка на события,
-удаление).
+A minimal library for procedural generation and manipulation of HTML elements
+without JSX or templates. The atom of the library is a **reactive node** (`App`):
+a wrapper over a native `HTMLElement` that holds a reference to the element and
+covers its lifecycle (creation, property updates, child composition, event
+subscription, disposal).
 
-## Мотивация
+## Motivation
 
-В рендер-коде проекта `apps/app-client` накопились повторяющиеся паттерны:
+The render code in `apps/app-client` accumulated repetitive patterns:
 
-- создание элемента из объектного конфига (`createElements`) отдавало голый
-  `HTMLElement` — обновление и компоновка оставались на вызвавшем коде;
-- списки перерисовывались через ручные `querySelector` + `replaceChildren`
+- Creating elements from an object config (`createElements`) returned a bare
+  `HTMLElement` — updates and composition were left to the caller;
+- Lists were redrawn via manual `querySelector` + `replaceChildren`
   (`DialogManager.setNotifications`);
-- шаблон + `cloneNode` для повторяющихся элементов (`createCarriedResourcesPanel`).
+- Template + `cloneNode` for repeated elements (`createCarriedResourcesPanel`).
 
-Библиотека закрывает эти паттерны одним контрактом: создал узел один раз, дальше —
-`set` / `append` / `replace` / `on` / `dispose`.
+The library covers these patterns with a single contract: create a node once,
+then — `set` / `append` / `replace` / `on` / `dispose`.
 
-## Ключевые решения
+## Key decisions
 
-1. **Один атом — `App<T>`.** Возвращается не голый элемент, а узел. Настоящий элемент
-   всегда доступен как `app.node` — это точка интеграции с нативным API и существующим
-   кодом (`document.body.append(el.node)`, передача в функции, ждущие `HTMLElement`).
-2. **Cтрогая типизация по тегу.** `create(tag, config)` возвращает
+1. **One atom — `App<T>`.** Returns not a bare element but a node. The real
+   element is always available as `app.node` — the integration point with native
+   API and existing code (`document.body.append(el.node)`, passing to functions
+   that expect `HTMLElement`).
+2. **Strict typing by tag.** `create(tag, config)` returns
    `App<HTMLElementTagNameMap[Tag]>`; `props` — `Partial<HTMLElementTagNameMap[Tag]>`.
-   Автокомплит и ошибки на уровне TS, без runtime-валидации. Проверки только на
-   непечатанных границах (конфиг приходит из JSON/сети).
-3. **Свойства применяются общим хелпером `applyProps`.** Частные случаи
-   (`className`, `style`, `dataset`) мержатся в под-объекты, прочее — `Reflect.set`.
-   Один и тот же хелпер используется и при создании, и в `set`.
-4. **Дети — плоский список с отбросом скобок.** `Child = HTMLElement | App |
-string | number | null | false`. `null`/`false` удобны для условной вставки и
-   отсекаются до вставки. Примитивы конвертируются в строку (в т.ч. `0` не теряется —
-   отсев по значению, не по truthiness).
-5. **События — только через `on`.** Оба слоя: декларативный `config.on` и метод
-   `app.on(type, handler)`. Метод возвращает функцию отписки. Подписки собираются для
-   `dispose`.
-6. **`dispose` — полная ликвидация.** Снимает все собранные подписки и удаляет элемент
-   из дерева. Повторное использование — навесить подписки заново через `on` (одна
-   строка). Никакого скрытого авто-жизненного цикла через `MutationObserver`.
+   Autocomplete and errors at the TS level, no runtime validation. Checks only at
+   untyped boundaries (config comes from JSON/network).
+3. **Properties applied via a shared `applyProps` helper.** Special cases
+   (`className`, `style`, `dataset`) merge into sub-objects, the rest —
+   `Reflect.set`. The same helper is used at creation time and in `set`.
+4. **Children — flat list with bracket filtering.** `Child = HTMLElement | App |
+   string | number | null | false`. `null`/`false` are convenient for conditional
+   insertion and are filtered before insertion. Primitives convert to string
+   (including `0` — filtered by value, not truthiness).
+5. **Events — only via `on`.** Both layers: declarative `config.on` and the
+   `app.on(type, handler)` method. The method returns an unsubscribe function.
+   Subscriptions are collected for `dispose`.
+6. **`dispose` — full teardown.** Removes all collected subscriptions and deletes
+   the element from the tree. Re-use — re-attach subscriptions via `on` (one
+   line). No hidden auto-lifecycle via `MutationObserver`.
 
-## Публичный API
+## Public API
 
-### Типы (`types.ts`)
+### Types (`types.ts`)
 
 ```ts
 interface App<T extends HTMLElement = HTMLElement> {
@@ -67,7 +68,7 @@ interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
 }
 ```
 
-### Фабрика (`create.ts`)
+### Factory (`create.ts`)
 
 ```ts
 const create = <Tag extends keyof HTMLElementTagNameMap>(
@@ -76,29 +77,31 @@ const create = <Tag extends keyof HTMLElementTagNameMap>(
 ): App<HTMLElementTagNameMap[Tag]>
 ```
 
-### Хелпер (`apply.ts`)
+### Helper (`apply.ts`)
 
 ```ts
-const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
+const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void
 ```
 
-## Поведение `dispose` (важно)
+## `dispose` behavior (important)
 
-`dispose()` = снять ВСЕ собранные подписки + `node.remove()`. Только навешанные через
-`on` / `config.on` попадают в пул. Если узел вернули в DOM нативным `append`, подписки
-**не** восстанавливаются автоматически — их навешивают заново. Это осознанный компромисс:
-не тащится реактивный слой, отслеживающий подключение к дереву.
+`dispose()` = unsubscribe ALL collected subscriptions + `node.remove()`. Only
+listeners attached via `on` / `config.on` enter the pool. If the node is
+re-attached to the DOM via native `append`, subscriptions are **not** restored
+automatically — they must be re-attached manually. This is a deliberate
+compromise: no reactive layer tracking tree attachment.
 
-## Нерешённое / вне скоупа
+## Out of scope
 
-- **SVG** (`SVGElement`) не обрабатывается — только `HTMLElement` и `HTMLElementEventMap`.
-- **`applyProps` и собственные свойства** — присваиваются через `Reflect.set`, но для
-  чтения сложных сеттеров сверка не выполняется (например `value` на `<input>`).
-- Вложенные массивы `Child[]` внутри `Child[]` не разворачиваются рекурсивно.
+- **SVG** (`SVGElement`) is not handled — only `HTMLElement` and
+  `HTMLElementEventMap`.
+- **`applyProps` and own properties** — assigned via `Reflect.set`, but complex
+  setter reads are not verified (e.g. `value` on `<input>`).
+- Nested `Child[]` inside `Child[]` is not recursively flattened.
 
-## Критерии готовности v0.1
+## v0.1 readiness
 
-- [x] `create` с типизированными `props`/`on`/`children`
+- [x] `create` with typed `props`/`on`/`children`
 - [x] `set` / `append` / `replace` / `on` / `dispose`
-- [x] отброс `null`/`false` без потери `0`
-- [x] чистый `tsc --noEmit` и `bun test` (5 тестов)
+- [x] `null`/`false` filtering without losing `0`
+- [x] clean `tsc --noEmit` and `vitest` (5 tests)
