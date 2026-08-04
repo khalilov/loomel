@@ -19,7 +19,7 @@ The render code in `apps/app-client` accumulated repetitive patterns:
 - Template + `cloneNode` for repeated elements (`createCarriedResourcesPanel`).
 
 The library covers these patterns with a single contract: create a node once,
-then — `set` / `append` / `replace` / `on` / `dispose`.
+then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
 
 ## Key decisions
 
@@ -44,6 +44,10 @@ then — `set` / `append` / `replace` / `on` / `dispose`.
 6. **`dispose` — full teardown.** Removes all collected subscriptions and deletes
    the element from the tree. Re-use — re-attach subscriptions via `on` (one
    line). No hidden auto-lifecycle via `MutationObserver`.
+7. **`clear` — soft reset.** Drops subscriptions and clears children but keeps
+   the node in the DOM. Complements `dispose` for component reset scenarios.
+8. **`query` / `queryAll` — DOM search shorthands.** Thin wrappers over
+   `querySelector` / `querySelectorAll` scoped to the node.
 
 ## Public API
 
@@ -55,7 +59,10 @@ interface App<T extends HTMLElement = HTMLElement> {
   set(props: Partial<T>): App<T>
   append(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
+  clear(): App<T>
   on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
+  query(sel: string): Element | null
+  queryAll(sel: string): NodeListOf<Element>
   dispose(): void
 }
 
@@ -83,13 +90,17 @@ const create = <Tag extends keyof HTMLElementTagNameMap>(
 const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void
 ```
 
-## `dispose` behavior (important)
+## `dispose` and `clear` behavior (important)
 
 `dispose()` = unsubscribe ALL collected subscriptions + `node.remove()`. Only
 listeners attached via `on` / `config.on` enter the pool. If the node is
 re-attached to the DOM via native `append`, subscriptions are **not** restored
 automatically — they must be re-attached manually. This is a deliberate
 compromise: no reactive layer tracking tree attachment.
+
+`clear()` = unsubscribe ALL collected subscriptions + `node.replaceChildren()`.
+The node stays in the DOM. Useful for resetting a component without destroying
+it — re-attach subscriptions via `on` after clearing.
 
 ## Out of scope
 
@@ -102,6 +113,6 @@ compromise: no reactive layer tracking tree attachment.
 ## v0.1 readiness
 
 - [x] `create` with typed `props`/`on`/`children`
-- [x] `set` / `append` / `replace` / `on` / `dispose`
+- [x] `set` / `append` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] `null`/`false` filtering without losing `0`
-- [x] clean `tsc --noEmit` and `vitest` (5 tests)
+- [x] clean `tsc --noEmit` and `vitest` (9 tests)

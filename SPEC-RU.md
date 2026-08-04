@@ -19,7 +19,7 @@ HTML-элементами без JSX и шаблонов. Атом библио�
 - шаблон + `cloneNode` для повторяющихся элементов (`createCarriedResourcesPanel`).
 
 Библиотека закрывает эти паттерны одним контрактом: создал узел один раз, дальше —
-`set` / `append` / `replace` / `on` / `dispose`.
+`set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
 
 ## Ключевые решения
 
@@ -43,6 +43,10 @@ string | number | null | false`. `null`/`false` удобны для условн
 6. **`dispose` — полная ликвидация.** Снимает все собранные подписки и удаляет элемент
    из дерева. Повторное использование — навесить подписки заново через `on` (одна
    строка). Никакого скрытого авто-жизненного цикла через `MutationObserver`.
+7. **`clear` — мягкий сброс.** Снимает подписки и очищает детей, но оставляет узел
+   в DOM. Дополняет `dispose` для сценариев сброса компонента.
+8. **`query` / `queryAll` — шорткаты DOM-поиска.** Обёртки над `querySelector` /
+   `querySelectorAll`, скоупнутые на узел.
 
 ## Публичный API
 
@@ -54,7 +58,10 @@ interface App<T extends HTMLElement = HTMLElement> {
   set(props: Partial<T>): App<T>
   append(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
+  clear(): App<T>
   on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
+  query(sel: string): Element | null
+  queryAll(sel: string): NodeListOf<Element>
   dispose(): void
 }
 
@@ -82,12 +89,16 @@ const create = <Tag extends keyof HTMLElementTagNameMap>(
 const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
 ```
 
-## Поведение `dispose` (важно)
+## Поведение `dispose` и `clear` (важно)
 
 `dispose()` = снять ВСЕ собранные подписки + `node.remove()`. Только навешанные через
 `on` / `config.on` попадают в пул. Если узел вернули в DOM нативным `append`, подписки
 **не** восстанавливаются автоматически — их навешивают заново. Это осознанный компромисс:
 не тащится реактивный слой, отслеживающий подключение к дереву.
+
+`clear()` = снять ВСЕ собранные подписки + `node.replaceChildren()`. Узел остаётся в DOM.
+Удобно для сброса компонента без его уничтожения — после очистки подписки навешиваются
+заново через `on`.
 
 ## Нерешённое / вне скоупа
 
@@ -99,6 +110,6 @@ const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
 ## Критерии готовности v0.1
 
 - [x] `create` с типизированными `props`/`on`/`children`
-- [x] `set` / `append` / `replace` / `on` / `dispose`
+- [x] `set` / `append` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
 - [x] отброс `null`/`false` без потери `0`
-- [x] чистый `tsc --noEmit` и `bun test` (5 тестов)
+- [x] чистый `tsc --noEmit` и `vitest` (9 тестов)

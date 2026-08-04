@@ -24,12 +24,24 @@ export const create = <Tag extends keyof HTMLElementTagNameMap>(
       node.replaceChildren(...children.filter(isMountable).map(resolveChild))
       return app
     },
+    clear() {
+      subscriptions.forEach((off) => off())
+      subscriptions.length = 0
+      node.replaceChildren()
+      return app
+    },
     on(type, handler) {
       const listener = handler as EventListener
       node.addEventListener(type, listener)
       const off = () => node.removeEventListener(type, listener)
       subscriptions.push(off)
       return off
+    },
+    query(sel) {
+      return node.querySelector(sel)
+    },
+    queryAll(sel) {
+      return node.querySelectorAll(sel)
     },
     dispose() {
       subscriptions.forEach((off) => off())

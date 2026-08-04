@@ -64,4 +64,49 @@ describe('create', () => {
     el.dispose()
     expect(document.body.contains(el.node)).toBe(false)
   })
+
+  it('clear removes children and subscriptions but keeps the node', () => {
+    const document = globalThis.document
+    let count = 0
+    const el = create('div')
+    el.on('click', () => (count += 1))
+    el.append(create('span', { props: { textContent: 'a' } }), create('span', { props: { textContent: 'b' } }))
+    document.body.append(el.node)
+    el.node.click()
+    expect(count).toBe(1)
+    expect(el.node.children.length).toBe(2)
+    el.clear()
+    expect(el.node.children.length).toBe(0)
+    expect(document.body.contains(el.node)).toBe(true)
+    el.node.click()
+    expect(count).toBe(1)
+  })
+
+  it('query returns a single element', () => {
+    const el = create('div')
+    el.append(
+      create('span', { props: { className: 'target' } }),
+      create('span', { props: { className: 'other' } }),
+    )
+    const found = el.query('.target')
+    expect(found).toBeInstanceOf(globalThis.HTMLElement)
+    expect(found!.className).toBe('target')
+  })
+
+  it('queryAll returns all matching elements', () => {
+    const el = create('div')
+    el.append(
+      create('span', { props: { className: 'item' } }),
+      create('span', { props: { className: 'item' } }),
+      create('span', { props: { className: 'other' } }),
+    )
+    const found = el.queryAll('.item')
+    expect(found.length).toBe(2)
+  })
+
+  it('query returns null when no match', () => {
+    const el = create('div')
+    el.append(create('span', { props: { className: 'a' } }))
+    expect(el.query('.missing')).toBeNull()
+  })
 })

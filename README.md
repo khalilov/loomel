@@ -36,7 +36,10 @@ document.body.append(meter.node)
 | `app.set(props)`             | Updates properties in place                                     |
 | `app.append(...children)`    | Appends children to the end                                     |
 | `app.replace(...children)`   | Replaces content (`replaceChildren`)                            |
+| `app.clear()`                | Drops subscriptions and clears children; node stays in DOM      |
 | `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function         |
+| `app.query(sel)`             | `querySelector` shorthand — returns `Element | null`            |
+| `app.queryAll(sel)`          | `querySelectorAll` shorthand — returns `NodeListOf<Element>`    |
 | `app.dispose()`              | Removes all subscriptions and the element from the tree         |
 | `applyProps(element, props)` | Low-level property application helper                           |
 
@@ -83,12 +86,16 @@ const redraw = (items: string[]) =>
 redraw(['a', 'b'])
 redraw(['c'])
 
+list.clear() // subscriptions removed, children cleared, node stays in DOM
 list.dispose() // subscriptions removed, element removed from DOM
 ```
 
 > `dispose()` removes the element and drops subscriptions. If the node is
 > re-attached to the DOM via native `append`, subscriptions must be re-added
 > manually — there is no automatic restoration.
+
+> `clear()` drops subscriptions and clears children but keeps the node in the
+> tree. Useful for resetting a component without destroying it.
 
 ## Example: reactive counter
 

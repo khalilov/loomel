@@ -29,16 +29,19 @@ document.body.append(meter.node)
 
 ## Публичный API
 
-| Член                         | Назначение                                                |
-| ---------------------------- | --------------------------------------------------------- |
-| `create(tag, config?)`       | Создаёт реактивный узел `App<HTMLElementTagNameMap[Tag]>` |
-| `app.node`                   | Настоящий `HTMLElement` — точка интеграции с нативным API |
-| `app.set(props)`             | Обновляет свойства на месте                               |
-| `app.append(...children)`    | Добавляет детей в конец                                   |
-| `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                   |
-| `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки           |
-| `app.dispose()`              | Снимает все подписки и удаляет элемент из дерева          |
-| `applyProps(element, props)` | Нижний хелпер применения свойств                          |
+| Член                         | Назначение                                                           |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `create(tag, config?)`       | Создаёт реактивный узел `App<HTMLElementTagNameMap[Tag]>`            |
+| `app.node`                   | Настоящий `HTMLElement` — точка интеграции с нативным API            |
+| `app.set(props)`             | Обновляет свойства на месте                                          |
+| `app.append(...children)`    | Добавляет детей в конец                                              |
+| `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                              |
+| `app.clear()`                | Снимает подписки и очищает детей; узел остаётся в DOM               |
+| `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки                      |
+| `app.query(sel)`             | Шорткат к `querySelector` — возвращает `Element | null`              |
+| `app.queryAll(sel)`          | Шорткат к `querySelectorAll` — возвращает `NodeListOf<Element>`      |
+| `app.dispose()`              | Снимает все подписки и удаляет элемент из дерева                     |
+| `applyProps(element, props)` | Нижний хелпер применения свойств                                     |
 
 ## Конфиг создания
 
@@ -75,16 +78,21 @@ const panel = create('div', {
 const list = create('ul')
 
 // где-то по мере прихода данных — перерисовать содержимое
-const redraw = (items: string[]) => list.replace(...items.map((item) => create('li', { props: { textContent: item } })))
+const redraw = (items: string[]) =>
+  list.replace(...items.map((item) => create('li', { props: { textContent: item } })))
 
 redraw(['a', 'b'])
 redraw(['c'])
 
+list.clear() // подписки сняты, дети очищены, узел в DOM остаётся
 list.dispose() // подписки сняты, узел удалён из DOM
 ```
 
 > `dispose()` удаляет элемент и снимает подписки. Если узел затем вернуть в DOM
 > нативным `append`, подписки навешиваются заново вручную — авто-восстановления нет.
+
+> `clear()` снимает подписки и очищает детей, но оставляет узел в дереве.
+> Удобно для сброса компонента без его уничтожения.
 
 ## Пример: реактивный счётчик
 
