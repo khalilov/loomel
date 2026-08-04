@@ -1,10 +1,7 @@
-import { apply } from './apply'
-import { type App, type Child, type ElementConfig } from './types'
-
-const isMountable = (child: Child): child is Exclude<Child, null | false | Child[]> => child !== null && child !== false && !Array.isArray(child)
-
-const flatten = (children: Child[]): Exclude<Child, null | false | Child[]>[] =>
-  children.flatMap((child) => (Array.isArray(child) ? flatten(child) : child)).filter(isMountable)
+import { apply } from './helpers/apply'
+import { flatten } from './helpers/flatten'
+import { resolveChild } from './helpers/resolveChild'
+import { type App, type ElementConfig } from './types'
 
 export const create = <Tag extends keyof HTMLElementTagNameMap>(
   tag: Tag,
@@ -72,10 +69,4 @@ export const create = <Tag extends keyof HTMLElementTagNameMap>(
   }
 
   return app
-}
-
-const resolveChild = (child: HTMLElement | App | string | number): string | Node => {
-  if (child instanceof HTMLElement) return child
-  if (typeof child === 'object') return child.node
-  return String(child)
 }
