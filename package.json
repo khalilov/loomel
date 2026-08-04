@@ -1,0 +1,45 @@
+{
+  "name": "loomel",
+  "version": "0.1.0",
+  "description": "Reactive HTML element factory: procedural DOM creation with typed props, children and events",
+  "keywords": [
+    "dom",
+    "html",
+    "element",
+    "factory",
+    "reactive",
+    "typed",
+    "typescript"
+  ],
+  "license": "ISC",
+  "author": "Sergey Khalilov <sergey.khalilov@gmail.com>",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "pack:check": "npm pack --dry-run"
+  },
+  "prepublishOnly": "npm run build",
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "jsdom": "^30.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
