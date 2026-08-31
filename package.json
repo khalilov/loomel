@@ -1,6 +1,6 @@
 {
   "name": "loomel",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Reactive HTML element factory: procedural DOM creation with typed props, children and events",
   "keywords": [
     "dom",
