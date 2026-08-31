@@ -1,7 +1,7 @@
 # loomel
 
-Reactive HTML element factory: procedural DOM creation and manipulation without JSX
-or templates. One atom — `App`, a wrapper over native `HTMLElement`.
+Reactive HTML/SVG element factory: procedural DOM creation and manipulation without
+JSX or templates. One atom — `App`, a wrapper over a native `Element`.
 
 ## Install
 
@@ -12,13 +12,13 @@ npm install loomel
 ## Quick start
 
 ```ts
-import { create } from 'loomel'
+import { html } from 'loomel'
 
-const meter = create('div', {
+const meter = html('div', {
   props: { className: 'meter' },
   children: [
-    create('span', { props: { textContent: 'Hunger' } }),
-    create('span', {
+    html('span', { props: { textContent: 'Hunger' } }),
+    html('span', {
       props: { className: 'meter-fill', style: { width: '42%' } },
     }),
   ],
@@ -27,51 +27,104 @@ const meter = create('div', {
 document.body.append(meter.node)
 ```
 
+## SVG
+
+`svg()` creates elements in the SVG namespace and applies attributes via
+`setAttribute` — not via property assignment. Use `viewBox`, `d`, `fill`,
+`stroke`, `stroke-width` and any other SVG attribute directly in `props`.
+
+```ts
+import { html, svg } from 'loomel'
+
+const icon = html('span', {
+  children: [
+    svg('svg', {
+      props: { viewBox: '0 0 24 24', fill: 'none' },
+      children: [
+        svg('path', {
+          props: {
+            d: 'M12 2v20M2 12h20',
+            stroke: 'currentColor',
+            'stroke-width': 2,
+          },
+        }),
+      ],
+    }),
+  ],
+})
+```
+
+## HTML properties vs SVG attributes
+
+- **`html()`** assigns *properties* (`Reflect.set`), with special cases for
+  `className`, `style`, `dataset`, `textContent`. This matches how HTML elements
+  reflect their state.
+- **`svg()`** writes *attributes* (`setAttribute`). SVG presentation attributes
+  like `d`, `viewBox` or `fill` are not reflected as element properties, so they
+  must go through `setAttribute`. `style` and `dataset` are still merged into
+  sub-objects, `className` maps to the `class` attribute.
+
+Both namespaces share the same `App` API: `set`, `append`, `prepend`, `replace`,
+`clear`, `on`, `query`, `queryAll`, `dispose`.
+
 ## Public API
 
-| Member                       | Description                                                     |
-| ---------------------------- | --------------------------------------------------------------- |
-| `create(tag, config?)`       | Creates a reactive node `App<HTMLElementTagNameMap[Tag]>`        |
-| `app.node`                   | The real `HTMLElement` — integration point with native API      |
-| `app.set(props)`             | Updates properties in place                                     |
-| `app.append(...children)`    | Appends children to the end                                     |
-| `app.prepend(...children)`   | Prepends children to the beginning                              |
-| `app.replace(...children)`   | Replaces content (`replaceChildren`)                            |
-| `app.clear()`                | Drops subscriptions and clears children; node stays in DOM      |
-| `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function         |
-| `app.query(sel)`             | `querySelector` shorthand — returns `Element | null`            |
-| `app.queryAll(sel)`          | `querySelectorAll` shorthand — returns `NodeListOf<Element>`    |
-| `app.dispose()`              | Removes all subscriptions and the element from the tree         |
-| `applyProps(element, props)` | Low-level property application helper                           |
+| Member                       | Description                                                      |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `html(tag, config?)`         | Creates a reactive node `App<HTMLElementTagNameMap[Tag]>`        |
+| `svg(tag, config?)`          | Creates a reactive node `App<SVGElementTagNameMap[Tag]>`         |
+| `app.node`                   | The real `Element` — integration point with native API           |
+| `app.set(props)`             | Updates properties (HTML) / attributes (SVG) in place            |
+| `app.append(...children)`    | Appends children to the end                                      |
+| `app.prepend(...children)`   | Prepends children to the beginning                               |
+| `app.replace(...children)`   | Replaces content (`replaceChildren`)                             |
+| `app.clear()`                | Drops subscriptions and clears children; node stays in DOM       |
+| `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function          |
+| `app.query(sel)`             | `querySelector` shorthand — returns `Element | null`             |
+| `app.queryAll(sel)`          | `querySelectorAll` shorthand — returns `NodeListOf<Element>`     |
+| `app.dispose()`              | Removes all subscriptions and the element from the tree          |
+| `applyProps(element, props)` | Low-level property application helper                            |
+
+> **Deprecated:** `create()` is an alias of `html()`. Use `html()` instead.
+> `create()` will be removed in the next major version.
 
 ## Creation config
 
 ```ts
-interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
+interface HtmlElementConfig<Tag extends keyof HTMLElementTagNameMap> {
   props?: Partial<HTMLElementTagNameMap[Tag]> // typed by tag
-  on?: { [K in keyof HTMLElementEventMap]?: (e: HTMLElementEventMap[K]) => void }
+  on?: { [K in keyof GlobalEventHandlersEventMap]?: (e: GlobalEventHandlersEventMap[K]) => void }
+  children?: Child | Child[]
+}
+
+interface SvgElementConfig {
+  props?: SvgAttributes // attributes: string | number, plus style / dataset
+  on?: { [K in keyof GlobalEventHandlersEventMap]?: (e: GlobalEventHandlersEventMap[K]) => void }
   children?: Child | Child[]
 }
 ```
 
-`props` is strictly typed: for `create('button', ...)` autocomplete and checks
+HTML `props` is strictly typed: for `html('button', ...)` autocomplete and checks
 work against `HTMLButtonElement`. Special cases (`style`, `dataset`) are merged
-into sub-objects.
+into sub-objects. SVG `props` accepts arbitrary attribute names as `string |
+number`.
 
 ## Children
 
-`Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]`
+`Child = Element | App<Element> | string | number | null | false | Child[]`
 
 - `App` resolves to its `.node`, primitives convert to text (`0` is preserved);
 - `null` / `false` are convenient for conditional insertion and are filtered out
   automatically;
 - nested `Child[]` are recursively flattened.
 
+HTML and SVG elements can be nested into each other wherever the DOM allows it.
+
 ```ts
-const panel = create('div', {
+const panel = html('div', {
   children: [
-    maybeTitle && create('h2', { props: { textContent: maybeTitle } }),
-    create('ul', { children: items.map((item) => create('li', { props: { textContent: item } })) }),
+    maybeTitle && html('h2', { props: { textContent: maybeTitle } }),
+    html('ul', { children: items.map((item) => html('li', { props: { textContent: item } })) }),
   ],
 })
 ```
@@ -79,11 +132,11 @@ const panel = create('div', {
 ## Lifecycle
 
 ```ts
-const list = create('ul')
+const list = html('ul')
 
 // as data arrives — redraw content
 const redraw = (items: string[]) =>
-  list.replace(...items.map((item) => create('li', { props: { textContent: item } })))
+  list.replace(...items.map((item) => html('li', { props: { textContent: item } })))
 
 redraw(['a', 'b'])
 redraw(['c'])
@@ -102,13 +155,13 @@ list.dispose() // subscriptions removed, element removed from DOM
 ## Example: nested event handling
 
 ```ts
-import { create } from 'loomel'
+import { html } from 'loomel'
 
 const items = ['apple', 'banana', 'cherry']
 
-const list = create('ul', {
+const list = html('ul', {
   children: items.map((item) =>
-    create('li', {
+    html('li', {
       props: { textContent: item },
       on: { click: () => console.log(`clicked: ${item}`) },
     }),
@@ -124,18 +177,18 @@ list.dispose()
 ## Example: reactive counter
 
 ```ts
-import { create } from 'loomel'
+import { html } from 'loomel'
 
 const buildCounter = (initial: number) => {
-  const display = create('span', { props: { textContent: String(initial) } })
+  const display = html('span', { props: { textContent: String(initial) } })
 
-  const button = create('button', {
+  const button = html('button', {
     props: { textContent: '+' },
     on: { click: () => display.set({ textContent: String(++count) }) },
   })
 
   let count = initial
-  return create('div', { children: [display, button] })
+  return html('div', { children: [display, button] })
 }
 ```
 

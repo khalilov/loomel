@@ -1,12 +1,12 @@
-# SPEC — реактивная фабрика HTML-элементов
+# SPEC — реактивная фабрика HTML/SVG-элементов
 
 ## Назначение
 
 Супер-мини библиотека для процедурной генерации и последующего манипулирования
-HTML-элементами без JSX и шаблонов. Атом библиотеки — **реактивный узел** (`App`):
-обёртка над нативным `HTMLElement`, которая держит ссылку на элемент и закрывает его
-жизненный цикл (создание, обновление свойств, компоновка детей, подписка на события,
-удаление).
+HTML- и SVG-элементами без JSX и шаблонов. Атом библиотеки — **реактивный узел**
+(`App`): обёртка над нативным `Element`, которая держит ссылку на элемент и закрывает
+его жизненный цикл (создание, обновление свойств/атрибутов, компоновка детей,
+подписка на события, удаление).
 
 ## Мотивация
 
@@ -26,18 +26,24 @@ HTML-элементами без JSX и шаблонов. Атом библио�
 1. **Один атом — `App<T>`.** Возвращается не голый элемент, а узел. Настоящий элемент
    всегда доступен как `app.node` — это точка интеграции с нативным API и существующим
    кодом (`document.body.append(el.node)`, передача в функции, ждущие `HTMLElement`).
-2. **Cтрогая типизация по тегу.** `create(tag, config)` возвращает
-   `App<HTMLElementTagNameMap[Tag]>`; `props` — `Partial<HTMLElementTagNameMap[Tag]>`.
-   Автокомплит и ошибки на уровне TS, без runtime-валидации. Проверки только на
-   непечатанных границах (конфиг приходит из JSON/сети).
-3. **Свойства применяются общим хелпером `applyProps`.** Частные случаи
-   (`className`, `style`, `dataset`) мержатся в под-объекты, прочее — `Reflect.set`.
+2. **Cтрогая типизация по тегу.** `html(tag, config)` возвращает
+   `App<HTMLElementTagNameMap[Tag]>`; `svg(tag, config)` — `App<SVGElementTagNameMap[Tag]>`.
+   HTML `props` — `Partial<HTMLElementTagNameMap[Tag]>`; SVG `props` — `SvgAttributes`
+   (имена атрибутов как `string | number`). Автокомплит и ошибки на уровне TS, без
+   runtime-валидации. Проверки только на непечатанных границах (конфиг приходит из
+   JSON/сети).
+3. **Два namespace, один `App`.** HTML применяет *свойства* общим хелпером `apply`
+   (`Reflect.set`, частные случаи `className`, `style`, `dataset`, `textContent`).
+   SVG применяет *атрибуты* через `applySvg` (`setAttribute`, частные случаи `style`,
+   `dataset`, `textContent`, `className` → `class`). Presentation-атрибуты (`d`,
+   `viewBox`, `fill`) не отражаются в свойства, поэтому идут через `setAttribute`.
    Один и тот же хелпер используется и при создании, и в `set`.
-4. **Дети — плоский список с отбросом скобок.** `Child = HTMLElement | App |
+4. **Дети — плоский список с отбросом скобок.** `Child = Element | App |
    string | number | null | false | Child[]`. `null`/`false` удобны для условной
    вставки и отсекаются до вставки. Примитивы конвертируются в строку (в т.ч.
    `0` не теряется — отсев по значению, не по truthiness). Вложенные `Child[]`
-   разворачиваются рекурсивно.
+   разворачиваются рекурсивно. HTML и SVG вкладываются друг в друга там, где это
+   разрешено DOM.
 5. **События — только через `on`.** Оба слоя: декларативный `config.on` и метод
    `app.on(type, handler)`. Метод возвращает функцию отписки. Подписки собираются для
    `dispose`.
@@ -54,41 +60,65 @@ HTML-элементами без JSX и шаблонов. Атом библио�
 ### Типы (`types.ts`)
 
 ```ts
-interface App<T extends HTMLElement = HTMLElement> {
+interface App<T extends Element = Element> {
   node: T
-  set(props: Partial<T>): App<T>
+  set(props: SetProps<T>): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
-  on<K extends keyof HTMLElementEventMap>(type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void
+  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
   dispose(): void
 }
 
-type Child = HTMLElement | App<HTMLElement> | string | number | null | false | Child[]
+type Child = Element | App<Element> | string | number | null | false | Child[]
 
-interface ElementConfig<Tag extends keyof HTMLElementTagNameMap> {
+type SetProps<T extends Element> = T extends HTMLElement ? Partial<T> : SvgAttributes
+
+interface SvgAttributes {
+  style?: Partial<CSSStyleDeclaration>
+  dataset?: Record<string, string>
+  [attr: string]: string | number | Partial<CSSStyleDeclaration> | Record<string, string> | undefined
+}
+
+interface HtmlElementConfig<Tag extends keyof HTMLElementTagNameMap> {
   props?: Partial<HTMLElementTagNameMap[Tag]>
-  on?: { [K in keyof HTMLElementEventMap]?: (event: HTMLElementEventMap[K]) => void }
+  on?: { [K in keyof GlobalEventHandlersEventMap]?: (event: GlobalEventHandlersEventMap[K]) => void }
+  children?: Child | Child[]
+}
+
+interface SvgElementConfig {
+  props?: SvgAttributes
+  on?: { [K in keyof GlobalEventHandlersEventMap]?: (event: GlobalEventHandlersEventMap[K]) => void }
   children?: Child | Child[]
 }
 ```
 
-### Фабрика (`create.ts`)
+### Фабрики (`html.ts`, `svg.ts`)
 
 ```ts
-const create = <Tag extends keyof HTMLElementTagNameMap>(
+const html = <Tag extends keyof HTMLElementTagNameMap>(
   tag: Tag,
-  config?: ElementConfig<Tag>,
+  config?: HtmlElementConfig<Tag>,
 ): App<HTMLElementTagNameMap[Tag]>
+
+const svg = <Tag extends keyof SVGElementTagNameMap>(
+  tag: Tag,
+  config?: SvgElementConfig,
+): App<SVGElementTagNameMap[Tag]>
 ```
 
-### Хелпер (`apply.ts`)
+`html` использует `document.createElement`; `svg` — `document.createElementNS('http://www.w3.org/2000/svg', tag)`.
+
+`create` — deprecated-алиас `html`, будет удалён в следующей major-версии.
+
+### Хелперы (`apply.ts`, `applySvg.ts`)
 
 ```ts
-const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
+const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void
+const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes): void
 ```
 
 ## Поведение `dispose` и `clear` (важно)
@@ -104,14 +134,18 @@ const applyProps = <T extends HTMLElement>(element: T, props: Partial<T>): void
 
 ## Нерешённое / вне скоупа
 
-- **SVG** (`SVGElement`) не обрабатывается — только `HTMLElement` и `HTMLElementEventMap`.
-- **`applyProps` и собственные свойства** — присваиваются через `Reflect.set`, но для
+- **MathML** (`MathMLElement`) не обрабатывается — только `HTMLElement`/`SVGElement` и
+  `GlobalEventHandlersEventMap`.
+- **`apply` и собственные свойства** — присваиваются через `Reflect.set`, но для
   чтения сложных сеттеров сверка не выполняется (например `value` на `<input>`).
+- Парсинг SVG-строк, загрузка SVG-файлов, санитизация внешнего SVG, реестр иконок,
+  JSX и шаблонизация.
 - Вложенные массивы `Child[]` внутри `Child[]` теперь разворачиваются рекурсивно.
 
-## Критерии готовности v0.1
+## Критерии готовности
 
-- [x] `create` с типизированными `props`/`on`/`children`
+- [x] `html`/`svg` с типизированными `props`/`on`/`children`
 - [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
+- [x] SVG-атрибуты через `setAttribute`, `className` → `class`
 - [x] отброс `null`/`false` без потери `0`
-- [x] чистый `tsc --noEmit` и `vitest` (15 тестов)
+- [x] чистый `tsc --noEmit` и `vitest`
