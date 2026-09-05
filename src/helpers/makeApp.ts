@@ -1,4 +1,5 @@
 import { type App, type SetProps } from '../types'
+import { apply } from './apply'
 import { flatten } from './flatten'
 import { resolveChild } from './resolveChild'
 
@@ -38,6 +39,10 @@ export const makeApp = <T extends Element>(node: T, setProps: (props: SetProps<T
     },
     query(sel) {
       return node.querySelector(sel)
+    },
+    find(sel) {
+      const el = node.querySelector(sel)
+      return el instanceof HTMLElement ? makeApp(el, (props) => apply(el, props)) : null
     },
     queryAll(sel) {
       return node.querySelectorAll(sel)

@@ -119,6 +119,21 @@ describe('html', () => {
     expect(el.query('.missing')).toBeNull()
   })
 
+  it('find returns an App with the full API', () => {
+    const el = html('div')
+    el.append(html('span', { props: { className: 'a' } }))
+    const found = el.find('.a')
+    expect(found).not.toBeNull()
+    found!.replace(html('span', { props: { className: 'b', textContent: 'x' } }))
+    expect(el.query('.a')!.textContent).toBe('x')
+    expect(el.query('.a')!.children[0].className).toBe('b')
+  })
+
+  it('find returns null when no match', () => {
+    const el = html('div')
+    expect(el.find('.missing')).toBeNull()
+  })
+
   it('flattens nested Child arrays recursively', () => {
     const el = html('ul')
     const a = html('li', { props: { textContent: 'a' } })

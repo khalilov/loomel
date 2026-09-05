@@ -8,6 +8,7 @@ export interface App<T extends Element = Element> {
   on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
+  find(sel: string): App<HTMLElement> | null
   dispose(): void
 }
 

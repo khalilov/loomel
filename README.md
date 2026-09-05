@@ -82,6 +82,7 @@ Both namespaces share the same `App` API: `set`, `append`, `prepend`, `replace`,
 | `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function          |
 | `app.query(sel)`             | `querySelector` shorthand — returns `Element | null`             |
 | `app.queryAll(sel)`          | `querySelectorAll` shorthand — returns `NodeListOf<Element>`     |
+| `app.find(sel)`              | `querySelector` wrapped as an `App` — returns `App | null`       |
 | `app.dispose()`              | Removes all subscriptions and the element from the tree          |
 | `applyProps(element, props)` | Low-level property application helper                            |
 

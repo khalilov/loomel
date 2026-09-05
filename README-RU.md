@@ -82,6 +82,7 @@ const icon = html('span', {
 | `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки                 |
 | `app.query(sel)`             | Шорткат к `querySelector` — возвращает `Element | null`         |
 | `app.queryAll(sel)`          | Шорткат к `querySelectorAll` — возвращает `NodeListOf<Element>` |
+| `app.find(sel)`              | `querySelector`, обёрнутый в `App` — возвращает `App | null`    |
 | `app.dispose()`              | Снимает все подписки и удаляет элемент из дерева                |
 | `applyProps(element, props)` | Нижний хелпер применения свойств                                |
 
