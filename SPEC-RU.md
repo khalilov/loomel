@@ -19,7 +19,7 @@ HTML- и SVG-элементами без JSX и шаблонов. Атом би�
 - шаблон + `cloneNode` для повторяющихся элементов (`createCarriedResourcesPanel`).
 
 Библиотека закрывает эти паттерны одним контрактом: создал узел один раз, дальше —
-`set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
+`set` / `style` / `text` / `append` / `replace` / `clear` / `on` / `find` / `dispose`.
 
 ## Ключевые решения
 
@@ -45,7 +45,8 @@ HTML- и SVG-элементами без JSX и шаблонов. Атом би�
    разворачиваются рекурсивно. HTML и SVG вкладываются друг в друга там, где это
    разрешено DOM.
 5. **События — только через `on`.** Оба слоя: декларативный `config.on` и метод
-   `app.on(type, handler)`. Метод возвращает функцию отписки. Подписки собираются для
+   `app.on(type, handler, options?)`. Нативные options listener поддержаны. Метод возвращает
+   функцию отписки. Подписки собираются для
    `dispose`.
 6. **`dispose` — полная ликвидация.** Снимает все собранные подписки и удаляет элемент
    из дерева. Повторное использование — навесить подписки заново через `on` (одна
@@ -54,6 +55,8 @@ HTML- и SVG-элементами без JSX и шаблонов. Атом би�
    в DOM. Дополняет `dispose` для сценариев сброса компонента.
 8. **`query` / `queryAll` — шорткаты DOM-поиска.** Обёртки над `querySelector` /
    `querySelectorAll`, скоупнутые на узел.
+9. **`find` / `findAll` — DOM-поиск с обёрткой.** Найденные HTML- и SVG-элементы
+   возвращаются как `App` с корректным поведением namespace.
 
 ## Публичный API
 
@@ -63,13 +66,17 @@ HTML- и SVG-элементами без JSX и шаблонов. Атом би�
 interface App<T extends Element = Element> {
   node: T
   set(props: SetProps<T>): App<T>
+  style(props: StyleProps): App<T>
+  text(value: string | number): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
-  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void): () => void
+  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void, options?: boolean | AddEventListenerOptions): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
+  find(sel: string): App<HTMLElement> | App<SVGElement> | null
+  findAll(sel: string): Array<App<HTMLElement> | App<SVGElement>>
   dispose(): void
 }
 
@@ -145,7 +152,7 @@ const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes): void
 ## Критерии готовности
 
 - [x] `html`/`svg` с типизированными `props`/`on`/`children`
-- [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
+- [x] `set` / `style` / `text` / `append` / `prepend` / `replace` / `clear` / `on` / `find` / `findAll` / `dispose`
 - [x] SVG-атрибуты через `setAttribute`, `className` → `class`
 - [x] отброс `null`/`false` без потери `0`
 - [x] чистый `tsc --noEmit` и `vitest`

@@ -27,6 +27,24 @@ const meter = html('div', {
 document.body.append(meter.node)
 ```
 
+## Цепочки вызовов
+
+Методы, обновляющие `App`, возвращают тот же экземпляр, поэтому вызовы
+можно объединять в цепочки:
+
+```ts
+const badge = html('span').style({ padding: 8, opacity: 0.8 }).text('Ready')
+
+const panel = html('section', {
+  children: [html('span', { props: { className: 'same' } })],
+})
+
+panel.find('.same')?.style({ width: 10 }).text('same')
+```
+
+После `find()` используйте optional chaining: если элемент не найден, остаток
+цепочки не выполнится.
+
 ## SVG
 
 `svg()` создаёт элементы в SVG-namespace и применяет атрибуты через `setAttribute`,
@@ -64,8 +82,8 @@ const icon = html('span', {
   `setAttribute`. `style` и `dataset` по-прежнему мержатся в под-объекты,
   `className` мапится на атрибут `class`.
 
-Оба namespace делят общий API `App`: `set`, `append`, `prepend`, `replace`,
-`clear`, `on`, `query`, `queryAll`, `dispose`.
+Оба namespace делят общий API `App`: `set`, `style`, `text`, `append`, `prepend`, `replace`,
+`clear`, `on`, `find`, `findAll`, `dispose`.
 
 ## Публичный API
 
@@ -75,14 +93,17 @@ const icon = html('span', {
 | `svg(tag, config?)`          | Создаёт реактивный узел `App<SVGElementTagNameMap[Tag]>`        |
 | `app.node`                   | Настоящий `Element` — точка интеграции с нативным API           |
 | `app.set(props)`             | Обновляет свойства (HTML) / атрибуты (SVG) на месте             |
+| `app.style(props)`           | Мержит стили; числа становятся `px`, кроме нуля и unitless-свойств |
+| `app.text(value)`            | Заменяет текст и возвращает тот же `App`                    |
 | `app.append(...children)`    | Добавляет детей в конец                                         |
 | `app.prepend(...children)`   | Добавляет детей в начало                                        |
 | `app.replace(...children)`   | Заменяет содержимое (`replaceChildren`)                         |
 | `app.clear()`                | Снимает подписки и очищает детей; узел остаётся в DOM           |
-| `app.on(type, handler)`      | Подписка на событие; возвращает функцию отписки                 |
-| `app.query(sel)`             | Шорткат к `querySelector` — возвращает `Element | null`         |
-| `app.queryAll(sel)`          | Шорткат к `querySelectorAll` — возвращает `NodeListOf<Element>` |
-| `app.find(sel)`              | `querySelector`, обёрнутый в `App` — возвращает `App | null`    |
+| `app.on(type, handler, options?)` | Подписка с нативными options; возвращает функцию отписки |
+| `app.query(sel)`             | Потенциально deprecated-шорткат к `querySelector`            |
+| `app.queryAll(sel)`          | Потенциально deprecated-шорткат к `querySelectorAll`         |
+| `app.find(sel)`              | Оборачивает первый HTML- или SVG-элемент в `App`              |
+| `app.findAll(sel)`           | Оборачивает найденные HTML- и SVG-элементы в `App[]`            |
 | `app.dispose()`              | Снимает все подписки и удаляет элемент из дерева                |
 | `applyProps(element, props)` | Нижний хелпер применения свойств                                |
 

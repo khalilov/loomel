@@ -19,7 +19,7 @@ The render code in `apps/app-client` accumulated repetitive patterns:
 - Template + `cloneNode` for repeated elements (`createCarriedResourcesPanel`).
 
 The library covers these patterns with a single contract: create a node once,
-then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
+then — `set` / `style` / `text` / `append` / `replace` / `clear` / `on` / `find` / `dispose`.
 
 ## Key decisions
 
@@ -47,7 +47,8 @@ then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
    are recursively flattened. HTML and SVG can be nested into each other where
    the DOM allows it.
 5. **Events — only via `on`.** Both layers: declarative `config.on` and the
-   `app.on(type, handler)` method. The method returns an unsubscribe function.
+   `app.on(type, handler, options?)` method. Native listener options are supported.
+   The method returns an unsubscribe function.
    Subscriptions are collected for `dispose`.
 6. **`dispose` — full teardown.** Removes all collected subscriptions and deletes
    the element from the tree. Re-use — re-attach subscriptions via `on` (one
@@ -56,6 +57,8 @@ then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
    the node in the DOM. Complements `dispose` for component reset scenarios.
 8. **`query` / `queryAll` — DOM search shorthands.** Thin wrappers over
    `querySelector` / `querySelectorAll` scoped to the node.
+9. **`find` / `findAll` — wrapped DOM search.** Matching HTML and SVG elements
+   are returned as `App` instances with the correct namespace update behavior.
 
 ## Public API
 
@@ -65,13 +68,17 @@ then — `set` / `append` / `replace` / `clear` / `on` / `query` / `dispose`.
 interface App<T extends Element = Element> {
   node: T
   set(props: SetProps<T>): App<T>
+  style(props: StyleProps): App<T>
+  text(value: string | number): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
-  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void): () => void
+  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void, options?: boolean | AddEventListenerOptions): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
+  find(sel: string): App<HTMLElement> | App<SVGElement> | null
+  findAll(sel: string): Array<App<HTMLElement> | App<SVGElement>>
   dispose(): void
 }
 
@@ -149,7 +156,7 @@ it — re-attach subscriptions via `on` after clearing.
 ## v0.1 readiness
 
 - [x] `html`/`svg` with typed `props`/`on`/`children`
-- [x] `set` / `append` / `prepend` / `replace` / `clear` / `on` / `query` / `queryAll` / `dispose`
+- [x] `set` / `style` / `text` / `append` / `prepend` / `replace` / `clear` / `on` / `find` / `findAll` / `dispose`
 - [x] SVG attributes via `setAttribute`, `className` → `class`
 - [x] `null`/`false` filtering without losing `0`
 - [x] clean `tsc --noEmit` and `vitest`

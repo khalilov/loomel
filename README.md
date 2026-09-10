@@ -27,6 +27,23 @@ const meter = html('div', {
 document.body.append(meter.node)
 ```
 
+## Chaining
+
+Methods that update an `App` return the same instance, so calls can be chained:
+
+```ts
+const badge = html('span').style({ padding: 8, opacity: 0.8 }).text('Ready')
+
+const panel = html('section', {
+  children: [html('span', { props: { className: 'same' } })],
+})
+
+panel.find('.same')?.style({ width: 10 }).text('same')
+```
+
+Use optional chaining after `find()`: when no element matches, the rest of the
+chain is skipped.
+
 ## SVG
 
 `svg()` creates elements in the SVG namespace and applies attributes via
@@ -64,8 +81,8 @@ const icon = html('span', {
   must go through `setAttribute`. `style` and `dataset` are still merged into
   sub-objects, `className` maps to the `class` attribute.
 
-Both namespaces share the same `App` API: `set`, `append`, `prepend`, `replace`,
-`clear`, `on`, `query`, `queryAll`, `dispose`.
+Both namespaces share the same `App` API: `set`, `style`, `text`, `append`, `prepend`, `replace`,
+`clear`, `on`, `find`, `findAll`, `dispose`.
 
 ## Public API
 
@@ -75,14 +92,17 @@ Both namespaces share the same `App` API: `set`, `append`, `prepend`, `replace`,
 | `svg(tag, config?)`          | Creates a reactive node `App<SVGElementTagNameMap[Tag]>`         |
 | `app.node`                   | The real `Element` — integration point with native API           |
 | `app.set(props)`             | Updates properties (HTML) / attributes (SVG) in place            |
+| `app.style(props)`           | Merges styles; numbers become `px`, except zero and unitless props |
+| `app.text(value)`            | Replaces text content and returns the same `App`                 |
 | `app.append(...children)`    | Appends children to the end                                      |
 | `app.prepend(...children)`   | Prepends children to the beginning                               |
 | `app.replace(...children)`   | Replaces content (`replaceChildren`)                             |
 | `app.clear()`                | Drops subscriptions and clears children; node stays in DOM       |
-| `app.on(type, handler)`      | Subscribes to an event; returns an unsubscribe function          |
-| `app.query(sel)`             | `querySelector` shorthand — returns `Element | null`             |
-| `app.queryAll(sel)`          | `querySelectorAll` shorthand — returns `NodeListOf<Element>`     |
-| `app.find(sel)`              | `querySelector` wrapped as an `App` — returns `App | null`       |
+| `app.on(type, handler, options?)` | Subscribes with native listener options; returns an unsubscribe function |
+| `app.query(sel)`             | Potentially deprecated `querySelector` shorthand                 |
+| `app.queryAll(sel)`          | Potentially deprecated `querySelectorAll` shorthand              |
+| `app.find(sel)`              | Wraps the first matching HTML or SVG element as an `App`         |
+| `app.findAll(sel)`           | Wraps matching HTML and SVG elements as `App[]`                  |
 | `app.dispose()`              | Removes all subscriptions and the element from the tree          |
 | `applyProps(element, props)` | Low-level property application helper                            |
 
