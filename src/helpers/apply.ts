@@ -1,3 +1,6 @@
+import { type StyleProps } from '../types'
+import { applyStyle } from './applyStyle'
+
 export const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void => {
   Object.entries(props).forEach(([key, value]) => {
     if (value === undefined) return
@@ -8,7 +11,7 @@ export const apply = <T extends HTMLElement>(element: T, props: Partial<T>): voi
         break
       }
       case 'style': {
-        Object.assign(element.style, value)
+        applyStyle(element, value as StyleProps)
         break
       }
       case 'dataset': {

@@ -1,4 +1,5 @@
-import { type SvgAttributes } from '../types'
+import { type StyleProps, type SvgAttributes } from '../types'
+import { applyStyle } from './applyStyle'
 
 export const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes): void => {
   Object.entries(props).forEach(([key, value]) => {
@@ -6,7 +7,7 @@ export const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes)
 
     switch (key) {
       case 'style': {
-        Object.assign(element.style, value)
+        applyStyle(element, value as StyleProps)
         break
       }
       case 'dataset': {

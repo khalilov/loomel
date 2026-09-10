@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { JSDOM } from 'jsdom'
 
 import { html } from '../src/html'
@@ -62,6 +62,26 @@ describe('html', () => {
     expect(el.node.textContent).toBe('x')
   })
 
+  it('text updates text content and chains', () => {
+    const el = html('div').append(html('span'))
+
+    expect(el.text(42)).toBe(el)
+    expect(el.node.textContent).toBe('42')
+    expect(el.node.children.length).toBe(0)
+  })
+
+  it('style merges CSS properties in place and chains', () => {
+    const el = html('div')
+    expect(el.style({ width: 10, opacity: 0.5, margin: 0, '--gap': '2rem' })).toBe(el)
+    expect(el.node.style.width).toBe('10px')
+    expect(el.node.style.opacity).toBe('0.5')
+    expect(el.node.style.margin).toBe('0px')
+    expect(el.node.style.getPropertyValue('--gap')).toBe('2rem')
+    el.style({ height: '5px' })
+    expect(el.node.style.height).toBe('5px')
+    expect(el.node.style.width).toBe('10px')
+  })
+
   it('on wires a listener and dispose removes it and the node', () => {
     const document = globalThis.document
     let count = 0
@@ -72,6 +92,21 @@ describe('html', () => {
     expect(count).toBe(1)
     el.dispose()
     expect(document.body.contains(el.node)).toBe(false)
+  })
+
+  it('on passes event listener options and keeps manual unsubscribe', () => {
+    const el = html('button')
+    let count = 0
+
+    el.on('click', () => (count += 1), { once: true })
+    el.node.click()
+    el.node.click()
+    expect(count).toBe(1)
+
+    const off = el.on('click', () => (count += 1), { capture: true })
+    off()
+    el.node.click()
+    expect(count).toBe(1)
   })
 
   it('clear removes children and subscriptions but keeps the node', () => {
@@ -92,6 +127,7 @@ describe('html', () => {
   })
 
   it('query returns a single element', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const el = html('div')
     el.append(
       html('span', { props: { className: 'target' } }),
@@ -100,9 +136,12 @@ describe('html', () => {
     const found = el.query('.target')
     expect(found).toBeInstanceOf(globalThis.HTMLElement)
     expect(found!.className).toBe('target')
+    expect(warn).toHaveBeenCalledWith('query() is potentially deprecated; use find() instead')
+    warn.mockRestore()
   })
 
   it('queryAll returns all matching elements', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const el = html('div')
     el.append(
       html('span', { props: { className: 'item' } }),
@@ -111,12 +150,16 @@ describe('html', () => {
     )
     const found = el.queryAll('.item')
     expect(found.length).toBe(2)
+    expect(warn).toHaveBeenCalledWith('queryAll() is potentially deprecated; use findAll() instead')
+    warn.mockRestore()
   })
 
   it('query returns null when no match', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const el = html('div')
     el.append(html('span', { props: { className: 'a' } }))
     expect(el.query('.missing')).toBeNull()
+    warn.mockRestore()
   })
 
   it('find returns an App with the full API', () => {
@@ -125,13 +168,26 @@ describe('html', () => {
     const found = el.find('.a')
     expect(found).not.toBeNull()
     found!.replace(html('span', { props: { className: 'b', textContent: 'x' } }))
-    expect(el.query('.a')!.textContent).toBe('x')
-    expect(el.query('.a')!.children[0].className).toBe('b')
+    expect(found!.node.textContent).toBe('x')
+    expect(found!.node.children[0].className).toBe('b')
   })
 
   it('find returns null when no match', () => {
     const el = html('div')
     expect(el.find('.missing')).toBeNull()
+  })
+
+  it('findAll returns Apps for all matching HTML elements', () => {
+    const el = html('div')
+    el.append(
+      html('span', { props: { className: 'item' } }),
+      html('span', { props: { className: 'item' } }),
+    )
+    const found = el.findAll('.item')
+    found.forEach((item) => item.style({ opacity: 0.5 }))
+    expect(found.length).toBe(2)
+    expect(found.every((item) => item.node.style.opacity === '0.5')).toBe(true)
+    expect(el.findAll('.missing')).toEqual([])
   })
 
   it('flattens nested Child arrays recursively', () => {

@@ -1,15 +1,28 @@
 import { type App, type SetProps } from '../types'
 import { apply } from './apply'
+import { applySvg } from './applySvg'
+import { applyStyle } from './applyStyle'
 import { flatten } from './flatten'
 import { resolveChild } from './resolveChild'
 
-export const makeApp = <T extends Element>(node: T, setProps: (props: SetProps<T>) => void): App<T> => {
+export const makeApp = <T extends HTMLElement | SVGElement>(
+  node: T,
+  setProps: (props: SetProps<T>) => void,
+): App<T> => {
   const subscriptions: Array<() => void> = []
 
   const app: App<T> = {
     node,
     set(props) {
       setProps(props)
+      return app
+    },
+    style(props) {
+      applyStyle(node, props)
+      return app
+    },
+    text(value) {
+      node.textContent = String(value)
       return app
     },
     append(...children) {
@@ -30,22 +43,44 @@ export const makeApp = <T extends Element>(node: T, setProps: (props: SetProps<T
       node.replaceChildren()
       return app
     },
-    on(type, handler) {
+    on(type, handler, options) {
       const listener = handler as EventListener
-      node.addEventListener(type, listener)
-      const off = () => node.removeEventListener(type, listener)
+      node.addEventListener(type, listener, options)
+      const off = () => node.removeEventListener(type, listener, options)
       subscriptions.push(off)
       return off
     },
     query(sel) {
+      console.warn('query() is potentially deprecated; use find() instead')
       return node.querySelector(sel)
     },
-    find(sel) {
-      const el = node.querySelector(sel)
-      return el instanceof HTMLElement ? makeApp(el, (props) => apply(el, props)) : null
-    },
     queryAll(sel) {
+      console.warn('queryAll() is potentially deprecated; use findAll() instead')
       return node.querySelectorAll(sel)
+    },
+    find(sel): App<HTMLElement> | App<SVGElement> | null {
+      const element = node.querySelector(sel)
+
+      if (element instanceof HTMLElement) {
+        return makeApp(element, (props) => apply(element, props))
+      } else if (element instanceof SVGElement) {
+        return makeApp(element, (props) => applySvg(element, props))
+      }
+
+      return null
+    },
+    findAll(sel): Array<App<HTMLElement> | App<SVGElement>> {
+      const found: Array<App<HTMLElement> | App<SVGElement>> = []
+
+      for (const element of node.querySelectorAll(sel)) {
+        if (element instanceof HTMLElement) {
+          found.push(makeApp(element, (props) => apply(element, props)))
+        } else if (element instanceof SVGElement) {
+          found.push(makeApp(element, (props) => applySvg(element, props)))
+        }
+      }
+
+      return found
     },
     dispose() {
       subscriptions.forEach((off) => off())

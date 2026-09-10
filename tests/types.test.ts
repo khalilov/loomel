@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it, beforeEach } from 'vitest'
 import { JSDOM } from 'jsdom'
 import { html } from '../src/html'
 import { svg } from '../src/svg'
+import { type App } from '../src/types'
 
 const setupDom = () => {
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
@@ -35,6 +36,28 @@ describe('types', () => {
     const btn = html('button')
     const off = btn.on('click', () => {})
     expectTypeOf(off).toEqualTypeOf<() => void>()
+  })
+
+  it('.findAll returns HTML or SVG Apps', () => {
+    expectTypeOf(html('div').findAll('span')).toEqualTypeOf<Array<App<HTMLElement> | App<SVGElement>>>()
+  })
+
+  it('.text and .on options preserve their contracts', () => {
+    const el = html('button')
+
+    expectTypeOf(el.text(42)).toEqualTypeOf<typeof el>()
+    expectTypeOf(el.on('click', () => {}, { once: true })).toEqualTypeOf<() => void>()
+  })
+
+  it('.style accepts CSS properties with numeric values and chains', () => {
+    const el = html('div')
+    expectTypeOf(el.style({ width: 10, opacity: 1, '--gap': '2rem' })).toEqualTypeOf<typeof el>()
+  })
+
+  it('.style rejects unknown CSS properties', () => {
+    const el = html('div')
+    // @ts-expect-error unknown CSS property
+    el.style({ notARealProperty: 'x' })
   })
 
   it('.on handler receives the correct event type', () => {

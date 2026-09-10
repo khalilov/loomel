@@ -53,6 +53,17 @@ describe('svg', () => {
     expect(rect.node.style.stroke).toBe('blue')
   })
 
+  it('style merges CSS properties in place', () => {
+    const rect = svg('rect')
+    expect(rect.style({ fill: 'red', opacity: 0.5, strokeWidth: 2 })).toBe(rect)
+    expect(rect.node.style.fill).toBe('red')
+    expect(rect.node.style.opacity).toBe('0.5')
+    expect(rect.node.style.strokeWidth).toBe('2')
+    rect.style({ stroke: 'blue' })
+    expect(rect.node.style.stroke).toBe('blue')
+    expect(rect.node.style.fill).toBe('red')
+  })
+
   it('nests SVG inside HTML', () => {
     const icon = html('span', {
       children: [
@@ -66,6 +77,21 @@ describe('svg', () => {
     const path = icon.node.querySelector('path')
     expect(path).not.toBeNull()
     expect(path!.namespaceURI).toBe('http://www.w3.org/2000/svg')
+  })
+
+  it('find and findAll wrap SVG elements with the full API', () => {
+    const icon = svg('svg', {
+      children: [svg('rect', { props: { className: 'shape' } }), svg('circle', { props: { className: 'shape' } })],
+    })
+    const rect = icon.find('rect')
+    const shapes = icon.findAll('.shape')
+
+    expect(rect?.node).toBeInstanceOf(globalThis.SVGElement)
+    rect?.set({ fill: 'red' }).text('x')
+    expect(rect?.node.getAttribute('fill')).toBe('red')
+    expect(rect?.node.textContent).toBe('x')
+    expect(shapes.length).toBe(2)
+    expect(shapes.every((shape) => shape.node instanceof globalThis.SVGElement)).toBe(true)
   })
 
   it('wires and disposes events', () => {
