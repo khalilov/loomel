@@ -1,10 +1,11 @@
 # loomel
 
-Typed procedural HTML/SVG without JSX or templates. `html()` and `svg()` return
-an `App`: a small chainable wrapper over a native DOM element.
+Procedural HTML/SVG without JSX or templates. `html()` and `svg()` return a
+small `App` wrapper with chainable updates. The DOM you already know, now with autocomplete and chaining — no framework
+buy-in, component ceremony, or JSX just to create one innocent `<div>`.
 
-No virtual DOM, no component ceremony, no framework asking to become your
-personality. Just the DOM with fewer wrist injuries.
+**2.1 kB gzipped** for the complete ESM build. Small enough to need a magnifying
+glass in the bundle analyzer, light enough to fly through lousy mobile data.
 
 > 🤖 Coding agent? Read the [agent guide](https://github.com/khalilov/loomel/blob/main/AGENTS.md).
 > Need every edge case? Open the [full specification](https://github.com/khalilov/loomel/blob/main/SPEC.md).
@@ -108,9 +109,8 @@ counter.dispose() // remove listeners and the element
 ```
 
 `watch(root)` automatically removes loomel listeners from externally detached
-elements and returns a function that stops observation. `app.node` is always
-available when direct DOM access is needed. Escape hatches are healthy; pretending
-the platform does not exist is how tiny libraries become accidental frameworks.
+elements and returns a function that stops observation. Use `app.node` when
+direct DOM access is needed.
 
 ## Development
 
