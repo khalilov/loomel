@@ -1,6 +1,6 @@
 {
   "name": "loomel",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Typed procedural HTML and SVG with a small chainable DOM API",
   "keywords": [
     "dom",
