@@ -1,40 +1,65 @@
 {
   "name": "loomel",
   "version": "0.6.0",
-  "description": "Reactive HTML element factory: procedural DOM creation with typed props, children and events",
+  "description": "Typed procedural HTML and SVG with a small chainable DOM API",
   "keywords": [
     "dom",
     "html",
+    "svg",
+    "browser",
+    "frontend",
+    "ui",
     "element",
-    "factory",
-    "reactive",
+    "element-factory",
+    "dom-manipulation",
+    "typed-dom",
+    "vanilla-js",
+    "jsx-free",
+    "template-free",
+    "chainable",
+    "lightweight",
     "typed",
     "typescript"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khalilov/loomel.git"
+  },
+  "homepage": "https://github.com/khalilov/loomel#readme",
+  "bugs": "https://github.com/khalilov/loomel/issues",
   "license": "ISC",
   "author": "Sergey Khalilov <sergey.khalilov@gmail.com>",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "AGENTS.md",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check": "npm run test && npm run typecheck && npm run build",
     "pack:check": "npm pack --dry-run"
   },
-  "prepublishOnly": "npm run build",
+  "prepublishOnly": "npm run check",
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
     "jsdom": "^30.0.1",
