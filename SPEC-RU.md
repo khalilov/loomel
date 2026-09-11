@@ -1,78 +1,42 @@
-# SPEC — реактивная фабрика HTML/SVG-элементов
+# SPEC — loomel
 
 ## Назначение
 
-Супер-мини библиотека для процедурной генерации и последующего манипулирования
-HTML- и SVG-элементами без JSX и шаблонов. Атом библиотеки — **реактивный узел**
-(`App`): обёртка над нативным `Element`, которая держит ссылку на элемент и закрывает
-его жизненный цикл (создание, обновление свойств/атрибутов, компоновка детей,
-подписка на события, удаление).
+`loomel` создаёт и обновляет типизированные HTML- и SVG-элементы без JSX и
+шаблонов. Единственная runtime-абстракция — `App<T>`: chainable-обёртка, которая
+владеет одним нативным элементом и зарегистрированными подписками.
 
-## Мотивация
+## Основные контракты
 
-В рендер-коде проекта `apps/app-client` накопились повторяющиеся паттерны:
+- `html()` создаёт элемент через `document.createElement` и применяет свойства.
+- `svg()` создаёт элемент через `document.createElementNS` и применяет атрибуты.
+- Изменяющие методы `App` возвращают тот же экземпляр.
+- `app.node` оставляет прямой доступ к нативному DOM.
+- HTML и SVG можно вкладывать друг в друга там, где это разрешает DOM.
+- Типизированные входы не проверяются повторно в runtime.
 
-- создание элемента из объектного конфига (`createElements`) отдавало голый
-  `HTMLElement` — обновление и компоновка оставались на вызвавшем коде;
-- списки перерисовывались через ручные `querySelector` + `replaceChildren`
-  (`DialogManager.setNotifications`);
-- шаблон + `cloneNode` для повторяющихся элементов (`createCarriedResourcesPanel`).
-
-Библиотека закрывает эти паттерны одним контрактом: создал узел один раз, дальше —
-`set` / `style` / `text` / `append` / `replace` / `clear` / `on` / `find` / `dispose`.
-
-## Ключевые решения
-
-1. **Один атом — `App<T>`.** Возвращается не голый элемент, а узел. Настоящий элемент
-   всегда доступен как `app.node` — это точка интеграции с нативным API и существующим
-   кодом (`document.body.append(el.node)`, передача в функции, ждущие `HTMLElement`).
-2. **Cтрогая типизация по тегу.** `html(tag, config)` возвращает
-   `App<HTMLElementTagNameMap[Tag]>`; `svg(tag, config)` — `App<SVGElementTagNameMap[Tag]>`.
-   HTML `props` — `Partial<HTMLElementTagNameMap[Tag]>`; SVG `props` — `SvgAttributes`
-   (имена атрибутов как `string | number`). Автокомплит и ошибки на уровне TS, без
-   runtime-валидации. Проверки только на непечатанных границах (конфиг приходит из
-   JSON/сети).
-3. **Два namespace, один `App`.** HTML применяет *свойства* общим хелпером `apply`
-   (`Reflect.set`, частные случаи `className`, `style`, `dataset`, `textContent`).
-   SVG применяет *атрибуты* через `applySvg` (`setAttribute`, частные случаи `style`,
-   `dataset`, `textContent`, `className` → `class`). Presentation-атрибуты (`d`,
-   `viewBox`, `fill`) не отражаются в свойства, поэтому идут через `setAttribute`.
-   Один и тот же хелпер используется и при создании, и в `set`.
-4. **Дети — плоский список с отбросом скобок.** `Child = Element | App |
-   string | number | null | false | Child[]`. `null`/`false` удобны для условной
-   вставки и отсекаются до вставки. Примитивы конвертируются в строку (в т.ч.
-   `0` не теряется — отсев по значению, не по truthiness). Вложенные `Child[]`
-   разворачиваются рекурсивно. HTML и SVG вкладываются друг в друга там, где это
-   разрешено DOM.
-5. **События — только через `on`.** Оба слоя: декларативный `config.on` и метод
-   `app.on(type, handler, options?)`. Нативные options listener поддержаны. Метод возвращает
-   функцию отписки. Подписки собираются для
-   `dispose`.
-6. **`dispose` — полная ликвидация.** Снимает все собранные подписки и удаляет элемент
-   из дерева. Повторное использование — навесить подписки заново через `on` (одна
-   строка). Никакого скрытого авто-жизненного цикла через `MutationObserver`.
-7. **`clear` — мягкий сброс.** Снимает подписки и очищает детей, но оставляет узел
-   в DOM. Дополняет `dispose` для сценариев сброса компонента.
-8. **`query` / `queryAll` — шорткаты DOM-поиска.** Обёртки над `querySelector` /
-   `querySelectorAll`, скоупнутые на узел.
-9. **`find` / `findAll` — DOM-поиск с обёрткой.** Найденные HTML- и SVG-элементы
-   возвращаются как `App` с корректным поведением namespace.
-
-## Публичный API
-
-### Типы (`types.ts`)
+## Публичные типы
 
 ```ts
 interface App<T extends Element = Element> {
   node: T
+  readonly connected: boolean
   set(props: SetProps<T>): App<T>
   style(props: StyleProps): App<T>
   text(value: string | number): App<T>
+  data(): DOMStringMap
+  data(key: string): string | undefined
+  data(key: string, value: DataValue): App<T>
+  data(values: Record<string, DataValue>): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
-  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void, options?: boolean | AddEventListenerOptions): () => void
+  on<K extends keyof GlobalEventHandlersEventMap>(
+    type: K,
+    handler: (event: GlobalEventHandlersEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions,
+  ): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
   find(sel: string): App<HTMLElement> | App<SVGElement> | null
@@ -81,13 +45,17 @@ interface App<T extends Element = Element> {
 }
 
 type Child = Element | App<Element> | string | number | null | false | Child[]
-
+type DataValue = string | number | boolean | null
 type SetProps<T extends Element> = T extends HTMLElement ? Partial<T> : SvgAttributes
 
+type StyleProps = Partial<{
+  [K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string ? K : never]: string | number
+}> & Partial<Record<`--${string}`, string>>
+
 interface SvgAttributes {
-  style?: Partial<CSSStyleDeclaration>
+  style?: StyleProps
   dataset?: Record<string, string>
-  [attr: string]: string | number | Partial<CSSStyleDeclaration> | Record<string, string> | undefined
+  [attr: string]: string | number | StyleProps | Record<string, string> | undefined
 }
 
 interface HtmlElementConfig<Tag extends keyof HTMLElementTagNameMap> {
@@ -103,56 +71,225 @@ interface SvgElementConfig {
 }
 ```
 
-### Фабрики (`html.ts`, `svg.ts`)
+## Фабрики
+
+### `html(tag, config?)`
+
+Возвращает `App<HTMLElementTagNameMap[Tag]>`. `props` применяются как
+HTML-свойства. `style` и `dataset` мержатся, `textContent` приводится к строке.
 
 ```ts
-const html = <Tag extends keyof HTMLElementTagNameMap>(
-  tag: Tag,
-  config?: HtmlElementConfig<Tag>,
-): App<HTMLElementTagNameMap[Tag]>
-
-const svg = <Tag extends keyof SVGElementTagNameMap>(
-  tag: Tag,
-  config?: SvgElementConfig,
-): App<SVGElementTagNameMap[Tag]>
+const input = html('input', {
+  props: { type: 'number', value: '5', className: 'amount' },
+  on: { input: (event) => console.log(event.type) },
+})
 ```
 
-`html` использует `document.createElement`; `svg` — `document.createElementNS('http://www.w3.org/2000/svg', tag)`.
+### `svg(tag, config?)`
 
-`create` — deprecated-алиас `html`, будет удалён в следующей major-версии.
-
-### Хелперы (`apply.ts`, `applySvg.ts`)
+Возвращает `App<SVGElementTagNameMap[Tag]>`. Props записываются через
+`setAttribute`; для `style`, `dataset`, `textContent` и `className` действует
+отдельная обработка.
 
 ```ts
-const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void
-const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes): void
+const circle = svg('circle', {
+  props: { cx: 12, cy: 12, r: 8, className: 'marker' },
+})
 ```
 
-## Поведение `dispose` и `clear` (важно)
+## API App
 
-`dispose()` = снять ВСЕ собранные подписки + `node.remove()`. Только навешанные через
-`on` / `config.on` попадают в пул. Если узел вернули в DOM нативным `append`, подписки
-**не** восстанавливаются автоматически — их навешивают заново. Это осознанный компромисс:
-не тащится реактивный слой, отслеживающий подключение к дереву.
+### `node`
 
-`clear()` = снять ВСЕ собранные подписки + `node.replaceChildren()`. Узел остаётся в DOM.
-Удобно для сброса компонента без его уничтожения — после очистки подписки навешиваются
-заново через `on`.
+Нативный элемент, которым владеет `App`. Нужен для DOM-операций вне API.
 
-## Нерешённое / вне скоупа
+```ts
+document.body.append(panel.node)
+panel.node.focus()
+```
 
-- **MathML** (`MathMLElement`) не обрабатывается — только `HTMLElement`/`SVGElement` и
-  `GlobalEventHandlersEventMap`.
-- **`apply` и собственные свойства** — присваиваются через `Reflect.set`, но для
-  чтения сложных сеттеров сверка не выполняется (например `value` на `<input>`).
-- Парсинг SVG-строк, загрузка SVG-файлов, санитизация внешнего SVG, реестр иконок,
-  JSX и шаблонизация.
-- Вложенные массивы `Child[]` внутри `Child[]` теперь разворачиваются рекурсивно.
+### `connected`
 
-## Критерии готовности
+Возвращает, подключён ли элемент к document.
 
-- [x] `html`/`svg` с типизированными `props`/`on`/`children`
-- [x] `set` / `style` / `text` / `append` / `prepend` / `replace` / `clear` / `on` / `find` / `findAll` / `dispose`
-- [x] SVG-атрибуты через `setAttribute`, `className` → `class`
-- [x] отброс `null`/`false` без потери `0`
-- [x] чистый `tsc --noEmit` и `vitest`
+```ts
+panel.connected // то же состояние, что и panel.node.isConnected
+```
+
+### `set(props)`
+
+Обновляет HTML-свойства или SVG-атрибуты на месте и возвращает тот же `App`.
+Отсутствующие поля не меняются. `set({ textContent })` остаётся доступен.
+
+```ts
+input.set({ value: '10', disabled: true })
+circle.set({ r: 10, fill: 'tomato' })
+title.set({ textContent: 'Обновлено' })
+```
+
+### `style(props)`
+
+Мержит inline-стили и возвращает тот же `App`. Строки сохраняются. Числа
+получают `px`, кроме нуля и unitless-свойств. CSS-переменные принимают строки.
+
+```ts
+panel.style({ width: 320, opacity: 0.8, '--gap': '1rem' })
+```
+
+### `text(value)`
+
+Заменяет `textContent` на `String(value)` и возвращает тот же `App`. Нативное
+поведение `textContent` удаляет детей, но подписки самого `App` сохраняются.
+
+```ts
+label.text('Готово')
+counter.text(42)
+```
+
+### `data()`
+
+Возвращает живой `DOMStringMap` элемента.
+
+```ts
+const dataset = panel.data()
+```
+
+### `data(key)`
+
+Возвращает значение dataset или `undefined`. Ключ задаётся в camelCase-формате
+dataset, а не как `data-kebab-case`.
+
+```ts
+const buildingId = panel.data('buildingId')
+```
+
+### `data(key, value)`
+
+Устанавливает одно значение и возвращает тот же `App`. Числа и boolean
+приводятся к строке; `null` удаляет ключ.
+
+```ts
+panel.data('buildingId', 42).data('ready', true)
+panel.data('obsolete', null)
+```
+
+### `data(values)`
+
+Устанавливает и удаляет несколько значений одним вызовом.
+
+```ts
+panel.data({ buildingId: 42, ready: true, obsolete: null })
+```
+
+### `append(...children)`
+
+Добавляет подготовленных детей в конец и возвращает тот же `App`.
+
+```ts
+list.append(html('li').text('A'), 'хвост', 0)
+```
+
+### `prepend(...children)`
+
+Добавляет подготовленных детей в начало и возвращает тот же `App`.
+
+```ts
+list.prepend(html('li').text('Первый'))
+```
+
+### `replace(...children)`
+
+Заменяет всех детей через `replaceChildren` и возвращает тот же `App`.
+
+```ts
+list.replace(...items.map((item) => html('li').text(item)))
+```
+
+### `clear()`
+
+Выполняет все функции отписки этого `App`, очищает их реестр, удаляет детей и
+возвращает тот же `App`. Сам элемент остаётся в DOM.
+
+```ts
+panel.clear().append(html('p').text('Сброшено'))
+```
+
+### `on(type, handler, options?)`
+
+Регистрирует типизированный DOM-listener, сохраняет его cleanup и возвращает
+функцию отписки. Поддерживаются нативные boolean и `AddEventListenerOptions`.
+
+```ts
+const off = button.on('click', handleClick, { once: true })
+off()
+```
+
+### `find(selector)`
+
+Оборачивает первый подходящий HTML- или SVG-потомок. Если совпадений нет,
+возвращает `null`. Найденный `App` применяет HTML-свойства или SVG-атрибуты в
+зависимости от типа элемента.
+
+```ts
+panel.find('.status')?.style({ opacity: 1 }).text('Готово')
+```
+
+### `findAll(selector)`
+
+Оборачивает все подходящие HTML- и SVG-потомки. Если совпадений нет, возвращает
+пустой массив.
+
+```ts
+panel.findAll('[data-ready]').forEach((item) => item.data('seen', true))
+```
+
+### `dispose()`
+
+Выполняет зарегистрированные функции отписки и удаляет элемент из дерева.
+Повторное добавление `node` не восстанавливает listeners.
+
+```ts
+panel.dispose()
+```
+
+## Автоматическое наблюдение за lifecycle
+
+### `watch(root)`
+
+Наблюдает за удалёнными потомками document, элемента или shadow root. В конце
+mutation batch снимает loomel-listeners с элементов, которые остались отключены.
+Синхронно перемещённые элементы остаются активны. Возвращаемая функция отключает
+observer, но не вызывает dispose для `App`.
+
+```ts
+const stop = watch(document.body)
+
+container.replaceChildren()
+stop()
+```
+
+## Дети
+
+Значения `Child` рекурсивно разворачиваются. `App` превращается в `app.node`,
+строки и числа — в текст, `null` и `false` пропускаются. Числовой ноль сохраняется.
+
+```ts
+const list = html('ul').append([
+  items.map((item) => html('li').text(item)),
+  condition && html('li').text('Дополнительно'),
+])
+```
+
+## Границы lifecycle
+
+- Отслеживаются только listeners, добавленные через `config.on` и `app.on()`.
+- `clear()` и `dispose()` не вызывают рекурсивный dispose дочерних `App`.
+- Обёртка из `find()` или `findAll()` владеет только подписками, добавленными через неё.
+- Повторное добавление удалённого элемента не восстанавливает listeners.
+
+## Вне области ответственности
+
+- MathML.
+- Парсинг и санитизация внешнего SVG.
+- Шаблоны, JSX, virtual DOM и автоматический render.
+- Автоматическое отслеживание lifecycle через `MutationObserver`.

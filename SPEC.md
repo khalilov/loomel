@@ -1,80 +1,42 @@
-# SPEC — Reactive HTML/SVG Element Factory
+# SPEC — loomel
 
 ## Purpose
 
-A minimal library for procedural generation and manipulation of HTML and SVG
-elements without JSX or templates. The atom of the library is a **reactive node**
-(`App`): a wrapper over a native `Element` that holds a reference to the element
-and covers its lifecycle (creation, property/attribute updates, child
-composition, event subscription, disposal).
+`loomel` creates and updates typed HTML and SVG elements without JSX or
+templates. Its single runtime abstraction is `App<T>`, a chainable wrapper that
+owns one native element and its registered event subscriptions.
 
-## Motivation
+## Core contracts
 
-The render code in `apps/app-client` accumulated repetitive patterns:
+- `html()` creates an element with `document.createElement` and applies properties.
+- `svg()` creates an element with `document.createElementNS` and applies attributes.
+- Mutating `App` methods return the same instance.
+- `app.node` is the escape hatch for native DOM operations.
+- HTML and SVG may be nested wherever the DOM permits it.
+- Runtime validation is limited to untyped boundaries; TypeScript owns typed input.
 
-- Creating elements from an object config (`createElements`) returned a bare
-  `HTMLElement` — updates and composition were left to the caller;
-- Lists were redrawn via manual `querySelector` + `replaceChildren`
-  (`DialogManager.setNotifications`);
-- Template + `cloneNode` for repeated elements (`createCarriedResourcesPanel`).
-
-The library covers these patterns with a single contract: create a node once,
-then — `set` / `style` / `text` / `append` / `replace` / `clear` / `on` / `find` / `dispose`.
-
-## Key decisions
-
-1. **One atom — `App<T>`.** Returns not a bare element but a node. The real
-   element is always available as `app.node` — the integration point with native
-   API and existing code (`document.body.append(el.node)`, passing to functions
-   that expect `HTMLElement`).
-2. **Strict typing by tag.** `html(tag, config)` returns
-   `App<HTMLElementTagNameMap[Tag]>`; `svg(tag, config)` returns
-   `App<SVGElementTagNameMap[Tag]>`. HTML `props` — `Partial<HTMLElementTagNameMap[Tag]>`;
-   SVG `props` — `SvgAttributes` (attribute names as `string | number`).
-   Autocomplete and errors at the TS level, no runtime validation. Checks only at
-   untyped boundaries (config comes from JSON/network).
-3. **Two namespaces, one `App`.** HTML applies *properties* via a shared
-   `apply` helper (`Reflect.set`, special cases `className`, `style`, `dataset`,
-   `textContent`). SVG applies *attributes* via `applySvg` (`setAttribute`,
-   special cases `style`, `dataset`, `textContent`, `className` → `class`).
-   Presentation attributes (`d`, `viewBox`, `fill`) are not reflected as
-   properties, so they must go through `setAttribute`. The same helper is used at
-   creation time and in `set`.
-4. **Children — flat list with bracket filtering.** `Child = Element | App |
-   string | number | null | false | Child[]`. `null`/`false` are convenient for
-   conditional insertion and are filtered before insertion. Primitives convert to
-   string (including `0` — filtered by value, not truthiness). Nested `Child[]`
-   are recursively flattened. HTML and SVG can be nested into each other where
-   the DOM allows it.
-5. **Events — only via `on`.** Both layers: declarative `config.on` and the
-   `app.on(type, handler, options?)` method. Native listener options are supported.
-   The method returns an unsubscribe function.
-   Subscriptions are collected for `dispose`.
-6. **`dispose` — full teardown.** Removes all collected subscriptions and deletes
-   the element from the tree. Re-use — re-attach subscriptions via `on` (one
-   line). No hidden auto-lifecycle via `MutationObserver`.
-7. **`clear` — soft reset.** Drops subscriptions and clears children but keeps
-   the node in the DOM. Complements `dispose` for component reset scenarios.
-8. **`query` / `queryAll` — DOM search shorthands.** Thin wrappers over
-   `querySelector` / `querySelectorAll` scoped to the node.
-9. **`find` / `findAll` — wrapped DOM search.** Matching HTML and SVG elements
-   are returned as `App` instances with the correct namespace update behavior.
-
-## Public API
-
-### Types (`types.ts`)
+## Public types
 
 ```ts
 interface App<T extends Element = Element> {
   node: T
+  readonly connected: boolean
   set(props: SetProps<T>): App<T>
   style(props: StyleProps): App<T>
   text(value: string | number): App<T>
+  data(): DOMStringMap
+  data(key: string): string | undefined
+  data(key: string, value: DataValue): App<T>
+  data(values: Record<string, DataValue>): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
   clear(): App<T>
-  on<K extends keyof GlobalEventHandlersEventMap>(type: K, handler: (event: GlobalEventHandlersEventMap[K]) => void, options?: boolean | AddEventListenerOptions): () => void
+  on<K extends keyof GlobalEventHandlersEventMap>(
+    type: K,
+    handler: (event: GlobalEventHandlersEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions,
+  ): () => void
   query(sel: string): Element | null
   queryAll(sel: string): NodeListOf<Element>
   find(sel: string): App<HTMLElement> | App<SVGElement> | null
@@ -83,13 +45,17 @@ interface App<T extends Element = Element> {
 }
 
 type Child = Element | App<Element> | string | number | null | false | Child[]
-
+type DataValue = string | number | boolean | null
 type SetProps<T extends Element> = T extends HTMLElement ? Partial<T> : SvgAttributes
 
+type StyleProps = Partial<{
+  [K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string ? K : never]: string | number
+}> & Partial<Record<`--${string}`, string>>
+
 interface SvgAttributes {
-  style?: Partial<CSSStyleDeclaration>
+  style?: StyleProps
   dataset?: Record<string, string>
-  [attr: string]: string | number | Partial<CSSStyleDeclaration> | Record<string, string> | undefined
+  [attr: string]: string | number | StyleProps | Record<string, string> | undefined
 }
 
 interface HtmlElementConfig<Tag extends keyof HTMLElementTagNameMap> {
@@ -105,58 +71,229 @@ interface SvgElementConfig {
 }
 ```
 
-### Factories (`html.ts`, `svg.ts`)
+## Factories
+
+### `html(tag, config?)`
+
+Returns `App<HTMLElementTagNameMap[Tag]>`. `props` are assigned as HTML
+properties. `style` and `dataset` are merged; `textContent` is stringified.
 
 ```ts
-const html = <Tag extends keyof HTMLElementTagNameMap>(
-  tag: Tag,
-  config?: HtmlElementConfig<Tag>,
-): App<HTMLElementTagNameMap[Tag]>
-
-const svg = <Tag extends keyof SVGElementTagNameMap>(
-  tag: Tag,
-  config?: SvgElementConfig,
-): App<SVGElementTagNameMap[Tag]>
+const input = html('input', {
+  props: { type: 'number', value: '5', className: 'amount' },
+  on: { input: (event) => console.log(event.type) },
+})
 ```
 
-`html` uses `document.createElement`; `svg` uses
-`document.createElementNS('http://www.w3.org/2000/svg', tag)`.
+### `svg(tag, config?)`
 
-`create` is a deprecated alias of `html` and will be removed in the next major.
-
-### Helpers (`apply.ts`, `applySvg.ts`)
+Returns `App<SVGElementTagNameMap[Tag]>`. Props are written with
+`setAttribute`; `style`, `dataset`, `textContent`, and `className` have dedicated
+handling.
 
 ```ts
-const apply = <T extends HTMLElement>(element: T, props: Partial<T>): void
-const applySvg = <T extends SVGElement>(element: T, props: SvgAttributes): void
+const circle = svg('circle', {
+  props: { cx: 12, cy: 12, r: 8, className: 'marker' },
+})
 ```
 
-## `dispose` and `clear` behavior (important)
+## App API
 
-`dispose()` = unsubscribe ALL collected subscriptions + `node.remove()`. Only
-listeners attached via `on` / `config.on` enter the pool. If the node is
-re-attached to the DOM via native `append`, subscriptions are **not** restored
-automatically — they must be re-attached manually. This is a deliberate
-compromise: no reactive layer tracking tree attachment.
+### `node`
 
-`clear()` = unsubscribe ALL collected subscriptions + `node.replaceChildren()`.
-The node stays in the DOM. Useful for resetting a component without destroying
-it — re-attach subscriptions via `on` after clearing.
+The owned native element. Use it for DOM operations outside `App`.
+
+```ts
+document.body.append(panel.node)
+panel.node.focus()
+```
+
+### `connected`
+
+Returns whether the owned element is connected to a document.
+
+```ts
+panel.connected // same state as panel.node.isConnected
+```
+
+### `set(props)`
+
+Updates HTML properties or SVG attributes in place and returns the same `App`.
+Omitted fields are untouched. `set({ textContent })` remains supported.
+
+```ts
+input.set({ value: '10', disabled: true })
+circle.set({ r: 10, fill: 'tomato' })
+title.set({ textContent: 'Updated' })
+```
+
+### `style(props)`
+
+Merges inline styles and returns the same `App`. Strings are preserved. Numeric
+values receive `px`, except zero and unitless properties. CSS custom properties
+accept strings.
+
+```ts
+panel.style({ width: 320, opacity: 0.8, '--gap': '1rem' })
+```
+
+### `text(value)`
+
+Replaces `textContent` with `String(value)` and returns the same `App`. Existing
+children are removed by native `textContent` behavior; subscriptions on the
+`App` itself remain registered.
+
+```ts
+label.text('Ready')
+counter.text(42)
+```
+
+### `data()`
+
+Returns the element's live `DOMStringMap`.
+
+```ts
+const dataset = panel.data()
+```
+
+### `data(key)`
+
+Returns a dataset value or `undefined`. Keys use dataset camelCase, not
+`data-kebab-case`.
+
+```ts
+const buildingId = panel.data('buildingId')
+```
+
+### `data(key, value)`
+
+Sets one dataset value and returns the same `App`. Numbers and booleans are
+stringified; `null` deletes the key.
+
+```ts
+panel.data('buildingId', 42).data('ready', true)
+panel.data('obsolete', null)
+```
+
+### `data(values)`
+
+Sets and deletes multiple dataset values in one call.
+
+```ts
+panel.data({ buildingId: 42, ready: true, obsolete: null })
+```
+
+### `append(...children)`
+
+Appends resolved children and returns the same `App`.
+
+```ts
+list.append(html('li').text('A'), 'tail', 0)
+```
+
+### `prepend(...children)`
+
+Prepends resolved children and returns the same `App`.
+
+```ts
+list.prepend(html('li').text('First'))
+```
+
+### `replace(...children)`
+
+Replaces all children through `replaceChildren` and returns the same `App`.
+
+```ts
+list.replace(...items.map((item) => html('li').text(item)))
+```
+
+### `clear()`
+
+Runs every unsubscribe callback registered by this `App`, clears that registry,
+removes all children, and returns the same `App`. The owned element stays in the
+DOM.
+
+```ts
+panel.clear().append(html('p').text('Reset'))
+```
+
+### `on(type, handler, options?)`
+
+Registers a typed DOM listener, stores its cleanup callback, and returns that
+callback. Native boolean and `AddEventListenerOptions` forms are supported.
+
+```ts
+const off = button.on('click', handleClick, { once: true })
+off()
+```
+
+### `find(selector)`
+
+Wraps the first matching HTML or SVG descendant. Returns `null` when no element
+matches. The returned `App` uses HTML property or SVG attribute behavior based
+on the matched element.
+
+```ts
+panel.find('.status')?.style({ opacity: 1 }).text('Ready')
+```
+
+### `findAll(selector)`
+
+Wraps every matching HTML and SVG descendant. Returns an empty array when there
+are no matches.
+
+```ts
+panel.findAll('[data-ready]').forEach((item) => item.data('seen', true))
+```
+
+### `dispose()`
+
+Runs registered unsubscribe callbacks and removes the owned element from its
+tree. Reattaching `node` does not restore listeners.
+
+```ts
+panel.dispose()
+```
+
+## Automatic lifecycle observation
+
+### `watch(root)`
+
+Observes removed descendants of a document, element, or shadow root. At the end
+of each mutation batch, loomel listeners are removed from elements that remain
+disconnected. Synchronously reparented elements remain active. The returned
+function stops observation without disposing apps.
+
+```ts
+const stop = watch(document.body)
+
+container.replaceChildren()
+stop()
+```
+
+## Children
+
+`Child` values are recursively flattened. `App` resolves to `app.node`, strings
+and numbers become text, and `null`/`false` are skipped. Numeric zero is kept.
+
+```ts
+const list = html('ul').append([
+  items.map((item) => html('li').text(item)),
+  condition && html('li').text('Extra'),
+])
+```
+
+## Lifecycle boundaries
+
+- Only listeners registered through `config.on` or `app.on()` are tracked.
+- `clear()` and `dispose()` do not recursively dispose child `App` wrappers.
+- A wrapper returned by `find()` or `findAll()` owns only subscriptions added
+  through that wrapper.
+- Reattaching a disposed element does not recreate listeners.
 
 ## Out of scope
 
-- **MathML** (`MathMLElement`) is not handled — only `HTMLElement`/`SVGElement` and
-  `GlobalEventHandlersEventMap`.
-- **`apply` and own properties** — assigned via `Reflect.set`, but complex
-  setter reads are not verified (e.g. `value` on `<input>`).
-- Parsing SVG strings, loading SVG files, sanitizing external SVG, an icon
-  registry, JSX and templating.
-- Nested `Child[]` inside `Child[]` is now recursively flattened.
-
-## v0.1 readiness
-
-- [x] `html`/`svg` with typed `props`/`on`/`children`
-- [x] `set` / `style` / `text` / `append` / `prepend` / `replace` / `clear` / `on` / `find` / `findAll` / `dispose`
-- [x] SVG attributes via `setAttribute`, `className` → `class`
-- [x] `null`/`false` filtering without losing `0`
-- [x] clean `tsc --noEmit` and `vitest`
+- MathML.
+- Parsing or sanitizing external SVG.
+- Templates, JSX, virtual DOM, and automatic rendering.
+- Automatic lifecycle tracking through `MutationObserver`.
