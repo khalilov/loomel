@@ -90,6 +90,8 @@ describe('svg', () => {
     rect?.set({ fill: 'red' }).text('x')
     expect(rect?.node.getAttribute('fill')).toBe('red')
     expect(rect?.node.textContent).toBe('x')
+    expect(rect?.data('kind', 'shape')).toBe(rect)
+    expect(rect?.data('kind')).toBe('shape')
     expect(shapes.length).toBe(2)
     expect(shapes.every((shape) => shape.node instanceof globalThis.SVGElement)).toBe(true)
   })

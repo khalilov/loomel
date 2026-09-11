@@ -1,4 +1,5 @@
-import { type App, type SetProps } from '../types'
+import { type App, type DataValue, type SetProps } from '../types'
+import { registerLifecycle } from '../lifecycle'
 import { apply } from './apply'
 import { applySvg } from './applySvg'
 import { applyStyle } from './applyStyle'
@@ -10,9 +11,40 @@ export const makeApp = <T extends HTMLElement | SVGElement>(
   setProps: (props: SetProps<T>) => void,
 ): App<T> => {
   const subscriptions: Array<() => void> = []
+  const cleanup = (): void => {
+    subscriptions.forEach((off) => off())
+    subscriptions.length = 0
+  }
+  const unregisterLifecycle = registerLifecycle(node, cleanup)
+  const data = ((keyOrValues?: string | Record<string, DataValue>, value?: DataValue) => {
+    if (keyOrValues === undefined) {
+      return node.dataset
+    } else if (typeof keyOrValues === 'string') {
+      if (value === undefined) {
+        return node.dataset[keyOrValues]
+      } else if (value === null) {
+        delete node.dataset[keyOrValues]
+      } else {
+        node.dataset[keyOrValues] = String(value)
+      }
+    } else {
+      for (const [key, nextValue] of Object.entries(keyOrValues)) {
+        if (nextValue === null) {
+          delete node.dataset[key]
+        } else {
+          node.dataset[key] = String(nextValue)
+        }
+      }
+    }
+
+    return app
+  }) as App<T>['data']
 
   const app: App<T> = {
     node,
+    get connected() {
+      return node.isConnected
+    },
     set(props) {
       setProps(props)
       return app
@@ -25,6 +57,7 @@ export const makeApp = <T extends HTMLElement | SVGElement>(
       node.textContent = String(value)
       return app
     },
+    data,
     append(...children) {
       node.append(...flatten(children).map(resolveChild))
       return app
@@ -38,8 +71,7 @@ export const makeApp = <T extends HTMLElement | SVGElement>(
       return app
     },
     clear() {
-      subscriptions.forEach((off) => off())
-      subscriptions.length = 0
+      cleanup()
       node.replaceChildren()
       return app
     },
@@ -83,7 +115,8 @@ export const makeApp = <T extends HTMLElement | SVGElement>(
       return found
     },
     dispose() {
-      subscriptions.forEach((off) => off())
+      cleanup()
+      unregisterLifecycle()
       node.remove()
     },
   }

@@ -1,8 +1,13 @@
 export interface App<T extends Element = Element> {
   node: T
+  readonly connected: boolean
   set(props: SetProps<T>): App<T>
   style(props: StyleProps): App<T>
   text(value: string | number): App<T>
+  data(): DOMStringMap
+  data(key: string): string | undefined
+  data(key: string, value: DataValue): App<T>
+  data(values: Record<string, DataValue>): App<T>
   append(...children: Child[]): App<T>
   prepend(...children: Child[]): App<T>
   replace(...children: Child[]): App<T>
@@ -20,6 +25,8 @@ export interface App<T extends Element = Element> {
 }
 
 export type Child = Element | App<Element> | string | number | null | false | Child[]
+
+export type DataValue = string | number | boolean | null
 
 export type SvgAttributeValue = string | number
 

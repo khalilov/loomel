@@ -9,6 +9,8 @@ const setupDom = () => {
     document: dom.window.document,
     HTMLElement: dom.window.HTMLElement,
     Element: dom.window.Element,
+    SVGElement: dom.window.SVGElement,
+    MutationObserver: dom.window.MutationObserver,
     Node: dom.window.Node,
   })
   return dom.window.document
@@ -70,6 +72,20 @@ describe('html', () => {
     expect(el.node.children.length).toBe(0)
   })
 
+  it('data reads, writes, deletes and chains dataset values', () => {
+    const el = html('div')
+
+    expect(el.data()).toBe(el.node.dataset)
+    expect(el.data('missing')).toBeUndefined()
+    expect(el.data('buildingId', 42).data('buildingReady', true)).toBe(el)
+    expect(el.data('buildingId')).toBe('42')
+    expect(el.data('buildingReady')).toBe('true')
+    expect(el.data({ level: 3, selected: false, buildingReady: null })).toBe(el)
+    expect(el.data('level')).toBe('3')
+    expect(el.data('selected')).toBe('false')
+    expect(el.data('buildingReady')).toBeUndefined()
+  })
+
   it('style merges CSS properties in place and chains', () => {
     const el = html('div')
     expect(el.style({ width: 10, opacity: 0.5, margin: 0, '--gap': '2rem' })).toBe(el)
@@ -107,6 +123,32 @@ describe('html', () => {
     off()
     el.node.click()
     expect(count).toBe(1)
+  })
+
+  it('watch cleans listeners when external code removes an App', async () => {
+    const { watch } = await import('../src/lifecycle')
+    const document = globalThis.document
+    const button = html('button')
+    const nextParent = document.createElement('div')
+    let count = 0
+
+    button.on('click', () => (count += 1))
+    document.body.append(button.node, nextParent)
+    expect(button.connected).toBe(true)
+
+    const stop = watch(document.body)
+    nextParent.append(button.node)
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    button.node.click()
+    expect(count).toBe(1)
+
+    button.node.remove()
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    button.node.click()
+
+    expect(button.connected).toBe(false)
+    expect(count).toBe(1)
+    stop()
   })
 
   it('clear removes children and subscriptions but keeps the node', () => {

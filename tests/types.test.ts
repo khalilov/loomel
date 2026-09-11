@@ -21,7 +21,10 @@ describe('types', () => {
   })
 
   it('html returns App<HTMLButtonElement>', () => {
-    expectTypeOf(html('button').node).toEqualTypeOf<HTMLButtonElement>()
+    const button = html('button')
+
+    expectTypeOf(button.node).toEqualTypeOf<HTMLButtonElement>()
+    expectTypeOf(button.connected).toEqualTypeOf<boolean>()
   })
 
   it('svg returns App<SVGSVGElement>', () => {
@@ -47,6 +50,15 @@ describe('types', () => {
 
     expectTypeOf(el.text(42)).toEqualTypeOf<typeof el>()
     expectTypeOf(el.on('click', () => {}, { once: true })).toEqualTypeOf<() => void>()
+  })
+
+  it('.data supports getters and chainable setters', () => {
+    const el = html('div')
+
+    expectTypeOf(el.data()).toEqualTypeOf<DOMStringMap>()
+    expectTypeOf(el.data('buildingReady')).toEqualTypeOf<string | undefined>()
+    expectTypeOf(el.data('buildingReady', true)).toEqualTypeOf<typeof el>()
+    expectTypeOf(el.data({ buildingId: 42, buildingReady: null })).toEqualTypeOf<typeof el>()
   })
 
   it('.style accepts CSS properties with numeric values and chains', () => {
