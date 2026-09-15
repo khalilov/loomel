@@ -49,8 +49,8 @@
   "files": [
     "dist",
     "README.md",
-    "AGENTS.md",
-    "SPEC.md"
+    "SPEC.md",
+    "skills"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",

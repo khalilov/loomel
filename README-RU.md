@@ -8,7 +8,7 @@
 **2.1 kB gzipped** за всю ESM-сборку. В bundle analyzer придётся искать с лупой,
 зато даже на херовом интернете загрузится раньше, чем ты успеешь моргнуть.
 
-> 🤖 Вы coding agent? Сначала прочитайте [инструкцию для агентов](https://github.com/khalilov/loomel/blob/main/AGENTS.md).
+> 🤖 Вы coding agent? Подключите [скилл loomel](https://github.com/khalilov/loomel/blob/main/skills/loomel/SKILL.md).
 > Нужны все нюансы? Откройте [полную спецификацию](https://github.com/khalilov/loomel/blob/main/SPEC-RU.md).
 
 ## Установка
@@ -121,3 +121,36 @@ npm run typecheck
 npm run build
 npm run pack:check
 ```
+
+## Скилл для агентов
+
+В пакете едет скилл `SKILL.md` в `skills/loomel/`. Подключите его к своему
+агенту — линкуйте **папку**, а не сам файл `SKILL.md`.
+
+| Инструмент | Куда класть | Как |
+| --- | --- | --- |
+| opencode | `opencode.json` → `skills.paths` | конфиг |
+| Claude Code | `~/.claude/skills/` (личное) или `.claude/skills/` (проект) | симлинк |
+| Codex | `~/.agents/skills/` (юзер) или `.agents/skills/` (репо) | симлинк |
+
+opencode — добавьте путь пакета в `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": { "paths": ["node_modules/loomel/skills"] }
+}
+```
+
+Claude Code и Codex — симлинк на папку (`.agents/skills` заодно покрывает
+остальные клиенты Agent Skills):
+
+```sh
+ln -sfn "$PWD/node_modules/loomel/skills/loomel" ~/.agents/skills/loomel
+ln -sfn "$PWD/node_modules/loomel/skills/loomel" ~/.claude/skills/loomel
+```
+
+После установки перезапустите opencode и Codex; Claude Code тоже подхватывает
+новые скиллы после рестарта, дальше следит за изменениями сам. При переустановке
+пакета симлинк нужно создать заново.
+
