@@ -45,6 +45,14 @@ describe('types', () => {
     expectTypeOf(html('div').findAll('span')).toEqualTypeOf<Array<App<HTMLElement> | App<SVGElement>>>()
   })
 
+  it('Child accepts any App and structural App-likes', () => {
+    const container = html('div')
+    const app: App<HTMLElement> = html('button')
+    const like: { node: Node } = { node: app.node }
+
+    expectTypeOf(container.replace(app, like, null, false, 'x', 1)).toEqualTypeOf<typeof container>()
+  })
+
   it('.text and .on options preserve their contracts', () => {
     const el = html('button')
 

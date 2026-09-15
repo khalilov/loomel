@@ -24,7 +24,9 @@ export interface App<T extends Element = Element> {
   dispose(): void
 }
 
-export type Child = Element | App<Element> | string | number | null | false | Child[]
+type ChildApp = { readonly node: Node }
+
+export type Child = Element | ChildApp | string | number | null | false | Child[]
 
 export type DataValue = string | number | boolean | null
 

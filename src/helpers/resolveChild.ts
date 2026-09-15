@@ -1,6 +1,6 @@
-import { type App } from '../types'
+import { type Child } from '../types'
 
-export const resolveChild = (child: Element | App<Element> | string | number): string | Node => {
+export const resolveChild = (child: Exclude<Child, null | false | Child[]>): string | Node => {
   if (child instanceof Element) {
     return child
   }

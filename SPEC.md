@@ -44,7 +44,7 @@ interface App<T extends Element = Element> {
   dispose(): void
 }
 
-type Child = Element | App<Element> | string | number | null | false | Child[]
+type Child = Element | { readonly node: Node } | string | number | null | false | Child[]
 type DataValue = string | number | boolean | null
 type SetProps<T extends Element> = T extends HTMLElement ? Partial<T> : SvgAttributes
 
@@ -273,8 +273,9 @@ stop()
 
 ## Children
 
-`Child` values are recursively flattened. `App` resolves to `app.node`, strings
-and numbers become text, and `null`/`false` are skipped. Numeric zero is kept.
+`Child` values are recursively flattened. Any `App` (matched structurally by its
+`node`) resolves to `node`, strings and numbers become text, and `null`/`false`
+are skipped. Numeric zero is kept.
 
 ```ts
 const list = html('ul').append([
